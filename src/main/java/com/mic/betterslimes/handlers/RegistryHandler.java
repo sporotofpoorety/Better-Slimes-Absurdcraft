@@ -8,9 +8,10 @@ import com.mic.betterslimes.entity.slimes.*;
 
 import com.mic.betterslimes.items.ModItems;
 import com.mic.betterslimes.sounds.ModSounds;
-import com.mic.betterslimes.util.ModConfig;
+import com.mic.betterslimes.util.BetterSlimesConfigMobs;
 
 import net.minecraft.entity.IEntityLivingData;
+import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.item.Item;
 import net.minecraft.util.SoundEvent;
 import net.minecraftforge.client.event.ModelRegistryEvent;
@@ -59,29 +60,32 @@ public class RegistryHandler {
 	public static void onEntityJoinWorld(EntityJoinWorldEvent event) {
 
 		if (event.getEntity() instanceof Quazar) {
-			Quazar k = (Quazar) event.getEntity();
+			Quazar quazar = (Quazar) event.getEntity();
 
-			k.setSlimeSize(9, true);
-			k.setAttackModifier(1);
-			k.setHealthModifier(40);
+			quazar.setSlimeSize(16, true);
+            quazar.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(10.0D);
+
+			quazar.setAttackModifier(1);
+			quazar.setHealthModifier(1);
+
         } else if (event.getEntity() instanceof EntityBetterSlime
                     && !(event.getEntity() instanceof ISpecialSlime)
-                    && ModConfig.convertSlimes) {
+                    && BetterSlimesConfigMobs.convertSlimes) {
             EntityBetterSlime s = (EntityBetterSlime) event.getEntity();
             
             if (BiomeDictionary.getBiomes(BiomeDictionary.Type.SNOWY)
                 .contains(event.getWorld().getBiome(event.getEntity().getPosition()))
-                && (ModConfig.convertIgnoreChance || ModConfig.iceSlime > 0)) 
+                && (BetterSlimesConfigMobs.convertIgnoreChance || BetterSlimesConfigMobs.iceSlime > 0)) 
                     s = new IceSlime(event.getWorld());
             
             if (BiomeDictionary.getBiomes(BiomeDictionary.Type.JUNGLE)
                 .contains(event.getWorld().getBiome(event.getEntity().getPosition()))
-                && (ModConfig.convertIgnoreChance || ModConfig.jungleSlime > 0)) 
+                && (BetterSlimesConfigMobs.convertIgnoreChance || BetterSlimesConfigMobs.jungleSlime > 0)) 
                     s = new JungleSlime(event.getWorld());
             
             if (BiomeDictionary.getBiomes(BiomeDictionary.Type.DRY)
                 .contains(event.getWorld().getBiome(event.getEntity().getPosition()))
-                && (ModConfig.convertIgnoreChance || ModConfig.sandSlime > 0)) 
+                && (BetterSlimesConfigMobs.convertIgnoreChance || BetterSlimesConfigMobs.sandSlime > 0)) 
                     s = new SandSlime(event.getWorld());
             
             // Replace the spawned entity with the instantiated version

@@ -1,0 +1,114 @@
+package com.mic.betterslimes.util;
+
+import com.mic.betterslimes.entity.slimes.Quazar;
+import net.minecraftforge.common.config.Configuration;
+
+import static com.mic.betterslimes.entity.EntityBetterSlime.damageMultiplier;
+
+
+public class BetterSlimesConfigMobs {
+	
+    public static boolean startupMessage = true;
+    public static boolean convertSlimes = true;
+    public static boolean convertIgnoreChance = true;
+	
+	public static int blueSlime = 14;
+	public static int redSlime = 7;
+	public static int yellowSlime = 4;
+	public static int purpleSlime = 2;
+	public static int blackSlime = 80;
+	public static int iceSlime = 8;
+	public static int jungleSlime = 20;
+	public static int sandSlime = 20;
+    public static int spectralSlime = 12;
+    public static int hauntedSlime = 12;
+	public static int kingChance = 5;
+	public static int ironSlime = 40;
+	public static int goldSlime = 20;
+    public static int knightSlime = 6;
+    
+	public static int splitChance = 50;
+
+
+
+
+    public static int specialCooldown = 160;
+    public static int leapWarning = 40;
+    public static float leapVelocityMultiplierY = 1.0F;
+    public static float leapVelocityMultiplierXZ = 1.0F;
+    public static float leapLandingDamage = 18.0F;
+    public static int leapLandingRadius = 10;
+    public static float movementSpeedMultiplier = 1.0F;
+    public static boolean spawnMinions = false;
+    public static String splitSlimeString = Reference.MODID + ":blue_slime";
+    public static float damageMultiplier = 1.0F;
+
+
+
+
+	public static final int MAX = Short.MAX_VALUE;
+
+	public static void load(Configuration config) 
+    {
+		String category1 = "General Config";
+//Adds config category
+		config.addCustomCategoryComment(category1, "General config values.");
+
+
+//Format is category, key, default value, comment
+		startupMessage = config.getBoolean("Start-Up Message?", category1, startupMessage, "Give a start-up thank you?");
+		kingChance = config.getInt("King Slime Spawn Chance", category1, kingChance, 0, 100, "0 for never and 100 for every night.");
+		splitChance = config.getInt("Slime Splitting Chance", category1, splitChance, 0, 100, "0 for never and 100 for always.");
+        damageMultiplier = config.getFloat("Damage Multiplier", category1, damageMultiplier, 0, MAX, "Custom slime damage multiplier");
+        convertSlimes = config.getBoolean("Convert Slimes?", category1, convertSlimes, "Convert slimes that spawn to their biome-specific type, if applicable?");
+        convertIgnoreChance = config.getBoolean("Ignore Spawn Chance?", category1, convertIgnoreChance, "If convert slimes is enabled, ignore the spawn chance being 0 when spawning a specific slime?");
+
+
+
+
+		String category2 = "Spawn Chances";
+//Adds config category
+		config.addCustomCategoryComment(category2, "Slime spawn chances.");
+
+
+		blueSlime = config.getInt("Blue Slime Spawn Chance", category2, blueSlime, 0, 100, "0 for never and 100 for always.");
+		redSlime = config.getInt("Red Slime Spawn Chance", category2, redSlime, 0, 100, "0 for never and 100 for always.");
+		yellowSlime = config.getInt("Yellow Slime Spawn Chance", category2, yellowSlime, 0, 100, "0 for never and 100 for always.");
+		purpleSlime = config.getInt("Purple Slime Spawn Chance", category2, purpleSlime, 0, 100, "0 for never and 100 for always.");
+		blackSlime = config.getInt("Black Slime Spawn Chance", category2, blackSlime, 0, 100, "0 for never and 100 for always.");
+		iceSlime = config.getInt("Ice Slime Spawn Chance", category2, iceSlime, 0, 100, "0 for never and 100 for always.");
+		jungleSlime = config.getInt("Jungle Slime Spawn Chance", category2, jungleSlime, 0, 100, "0 for never and 100 for always.");
+		sandSlime = config.getInt("Sand Slime Spawn Chance", category2, sandSlime, 0, 100, "0 for never and 100 for always.");
+		spectralSlime = config.getInt("Spectral Slime Spawn Chance", category2, spectralSlime, 0, 100, "0 for never and 100 for always.");
+		hauntedSlime = config.getInt("Haunted Slime Spawn Chance", category2, hauntedSlime, 0, 100, "0 for never and 100 for always.");
+		ironSlime = config.getInt("Iron Slime Spawn Chance", category2, ironSlime, 0, 100, "0 for never and 100 for always.");
+		goldSlime = config.getInt("Gold Slime Spawn Chance", category2, goldSlime, 0, 100, "0 for never and 100 for always.");
+		knightSlime = config.getInt("Knight Slime Spawn Chance", category2, knightSlime, 0, 100, "0 for never and 100 for always.");
+
+
+
+    
+		String category3 = "Quazar Config";
+//Adds config category
+		config.addCustomCategoryComment(category3, "Quazar specific configs.");
+
+
+        specialCooldown = config.getInt("Quazar leap cooldown", category3, 160, 0, MAX, "Cooldown between special attacks in ticks");
+        leapWarning = config.getInt("Quazar leap warning", category3, 40, 0, MAX, "Length of the animation the boss does before leap attacks in ticks. \nMust be shorter than specialCooldown");
+        leapVelocityMultiplierY = config.getFloat("Quazar leap launch vertical", category3, 1.0F, 0, MAX, "Vertical speed all entities affected by the leap attack get");
+        leapVelocityMultiplierXZ = config.getFloat("Quazar leap launch horizontal", category3, 1.0F, 0, MAX, "Horizontal speed all entities affected by the leap attack get");
+        leapLandingDamage = config.getFloat("Quazar leap landing damage", category3, 18.0F, 0, MAX, "Damage the leap attack deals on landing");
+        leapLandingRadius = config.getInt("Quazar leap damage radius", category3, 10, 0, MAX, "Damage radius of the leap attack");
+        movementSpeedMultiplier = config.getFloat("Quazar movement speed", category3, 1.0F, 0, MAX, "Amount by which the movement speed of Quazar is multiplied");
+
+        spawnMinions = config.getBoolean("Quazar spawns minions", category3, false, "Ability of the boss to summon little slaves to aid him in battle");
+        if (!spawnMinions) 
+        {
+            splitChance = 0;
+        }
+
+        splitSlimeString = config.getString("Quazar split minion type", category3, Reference.MODID + ":blue_slime", "The type of slime the boss will split into on death\n Must be a BetterSlimes slime");
+        damageMultiplier = config.getFloat("Quazar damage multiplier", category3, 1.0F, 0, MAX, "Attack damage multiplier of Quazar");
+    
+    }
+}

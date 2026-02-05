@@ -14,7 +14,10 @@ import net.minecraft.entity.MoverType;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.EntityAIBase;
 import net.minecraft.entity.ai.EntityAIFindEntityNearestPlayer;
+//import net.minecraft.entity.ai.EntityAIHurtByTarget;
+//import net.minecraft.entity.ai.EntityAINearestAttackableTarget;
 import net.minecraft.entity.ai.EntityMoveHelper;
+//import net.minecraft.entity.monster.EntityIronGolem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.projectile.EntityLargeFireball;
 import net.minecraft.entity.projectile.EntityWitherSkull;
@@ -35,6 +38,9 @@ import net.minecraft.world.World;
 import net.minecraft.world.storage.loot.LootTableList;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
+
+import org.sporotofpoorety.eternitymode.entity.ai.EntityAIRelentlessTargetPlayers;
+
 
 public class HauntedSlime extends EntityBetterSlime implements ISpecialSlime{
 
@@ -194,7 +200,13 @@ public class HauntedSlime extends EntityBetterSlime implements ISpecialSlime{
 		this.tasks.addTask(5, new AIRandomFly(this));
         this.tasks.addTask(7, new AILookAround(this));
         this.tasks.addTask(7, new AIFireballAttack(this));
-        this.targetTasks.addTask(1, new EntityAIFindEntityNearestPlayer(this));
+/*
+        this.targetTasks.addTask(1, new EntityAIHurtByTarget(this, false, new Class[0]));
+        this.targetTasks.addTask(2, new EntityAINearestAttackableTarget(this, EntityPlayer.class, true));
+        this.targetTasks.addTask(3, new EntityAINearestAttackableTarget(this, EntityIronGolem.class, true));
+*/
+//      this.targetTasks.addTask(1, new EntityAIFindEntityNearestPlayer(this));
+        this.targetTasks.addTask(1, new EntityAIRelentlessTargetPlayers(this, 160.0D));
 	}
 	
 	@Override
