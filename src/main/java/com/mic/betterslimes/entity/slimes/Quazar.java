@@ -41,9 +41,11 @@ import net.minecraftforge.fml.common.registry.ForgeRegistries;
 
 import org.sporotofpoorety.eternitymode.entity.EntityExplosiveShockwave;
 import org.sporotofpoorety.eternitymode.entity.EntityThrownBlock;
+import org.sporotofpoorety.eternitymode.entity.ai.EntityAIStun;
 import org.sporotofpoorety.eternitymode.entity.projectile.EntityFlameShotBouncing;
 import org.sporotofpoorety.eternitymode.entity.projectile.EntityFlameShotHoming;
 import org.sporotofpoorety.eternitymode.entity.projectile.EntityFlameShotLinearSplits;
+import org.sporotofpoorety.eternitymode.interfacemixins.IMixinEntityLiving;
 import org.sporotofpoorety.eternitymode.util.AbsurdcraftMathUtils;
 import org.sporotofpoorety.eternitymode.util.EntityUtil;
 import org.sporotofpoorety.eternitymode.util.ProjectileUtil;
@@ -68,19 +70,29 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 
 
 
+//Interface with mixin
+    public IMixinEntityLiving livingEntityMixin;
+
+
 //Attack state
+    public enum BehaviorState 
+    {
+        DEFAULT,
+        PREPARING_LEAP,
+        LEAPING_SPECIAL
+    }
+    public BehaviorState behaviorState;
+
+
 //  ArrayList<Integer> currentAttacksProjectile = new ArrayList<>();
 //  ArrayList<Integer> currentAttacksMovement = new ArrayList<>();
     int currentAttackProjectile;
     int currentAttackMovement;    
 
 
-    public boolean isPerformingSpecial;
     public int bossSpecialCountdown;
 
 
-    Integer targetLastPosX;
-    Integer targetLastPosZ;
     private boolean wasOnGroundPreviousTick;
     private boolean isPerformingLeap;
     protected boolean shouldExplodeOnLanding;
@@ -91,7 +103,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 
 
 //Values config
-    public static boolean spawnMinions;
+    public boolean spawnMinions;
     private static final DataParameter<Integer> SPAWN_TIME 
         = EntityDataManager.<Integer>createKey(Quazar.class, DataSerializers.VARINT);
     public static String splitSlimeString;
@@ -99,19 +111,19 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 
 
     private double movementSpeedAttribute;
-    public static float movementSpeedMultiplier;
+    public float movementSpeedMultiplier;
 
 
-    public static int specialCooldown;
+    public int specialCooldown;
 
 
     public int leapSequenceMax;
     public int leapSequenceCooldown;
-    public static int leapWarning;
-    public static float leapVelocityMultiplierXZ;
-    public static float leapVelocityMultiplierY;
-    public static int leapLandingRadius;
-    public static float leapLandingDamage;
+    public int leapWarning;
+    public float leapVelocityMultiplierXZ;
+    public float leapVelocityMultiplierY;
+    public int leapLandingRadius;
+    public float leapLandingDamage;
 
 
 
@@ -136,20 +148,8 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 
 
 
-//Attack state
-        this.currentAttackProjectile = rand.nextInt(3);
-        this.currentAttackMovement = rand.nextInt(2);
-
-        this.isPerformingSpecial = false;
-        this.bossSpecialCountdown = specialCooldown;
-
-        this.targetLastPosX = null;
-        this.targetLastPosZ = null;
-        this.wasOnGroundPreviousTick = false;
-        this.isPerformingLeap = false;
-        this.shouldExplodeOnLanding = false;
-        this.landingExplosionWait = 2;
-        this.leapSequenceAt = 1;
+//Interface with mixin
+        this.livingEntityMixin = (IMixinEntityLiving) this;
 
 
 
@@ -167,12 +167,34 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
         this.specialCooldown = BetterSlimesConfigMobs.specialCooldown;
 
         this.leapSequenceMax = 3;
-        this.leapSequenceCooldown = 40;
+        this.leapSequenceCooldown = 20;
         this.leapWarning = BetterSlimesConfigMobs.leapWarning;
         this.leapVelocityMultiplierXZ = BetterSlimesConfigMobs.leapVelocityMultiplierXZ;
         this.leapVelocityMultiplierY = BetterSlimesConfigMobs.leapVelocityMultiplierY;
         this.leapLandingRadius = BetterSlimesConfigMobs.leapLandingRadius;
         this.leapLandingDamage = BetterSlimesConfigMobs.leapLandingDamage;
+
+
+
+
+//Attack state
+        this.behaviorState = BehaviorState.DEFAULT;
+
+        this.currentAttackProjectile = rand.nextInt(3);
+        this.currentAttackMovement = rand.nextInt(2);
+
+        this.bossSpecialCountdown = specialCooldown;
+
+        this.wasOnGroundPreviousTick = false;
+        this.isPerformingLeap = false;
+        this.shouldExplodeOnLanding = false;
+        this.landingExplosionWait = 2;
+        this.leapSequenceAt = 1;
+
+
+
+
+        this.tasks.addTask(0, new EntityAIStun(this));        
     }
 
 
@@ -183,10 +205,26 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
         super.entityInit();
     }
 
+    public void resetBehaviorState()
+    {
+//Reset special cooldown
+        this.bossSpecialCountdown = 40;
+//Reset performing special
+        this.behaviorState = BehaviorState.DEFAULT;
+//Reset leap state and leaps performed
+        this.isPerformingLeap = false;
+        this.leapSequenceAt = 1;
+//Reset landing explosions
+        this.shouldExplodeOnLanding = false;
+        this.landingExplosionWait = 2;
+//Reset movement speed attribute
+        this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(this.movementSpeedAttribute);
+    }
 
 
 
-//On update
+
+//CLIENT SIDE STUFF HERE
     @Override
     public void onUpdate() 
     {
@@ -208,7 +246,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
         {
 
 //When reaching leap warning
-            if (this.bossSpecialCountdown <= leapWarning) 
+            if (this.bossSpecialCountdown <= this.leapWarning) 
             {
 //Set creeper state
                 this.setCreeperState(1);
@@ -224,7 +262,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 
 
 
-//On living update
+//SERVER SIDE STUFF HERE
     public void onLivingUpdate() 
     {
 //Super update
@@ -238,32 +276,130 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
         }
 
 
-//Check if should explode on landing
-        this.checkLandingExplosions();
 
+        EntityLivingBase attackTarget = this.getAttackTarget();
 
 //If this has target
-        if (this.getAttackTarget() != null) 
+        if (attackTarget != null) 
         {
+//Default state
+            if(this.behaviorState == BehaviorState.DEFAULT) 
+            { 
 //Execute regular attacks
-            if(!this.isPerformingSpecial) { this.executeRegularAttacks(); }
-//Check if should perform special leap warning
-            checkSpecialLeapPreparation(this.getAttackTarget());
-//Check if should perform special leap execution
-            checkSpecialLeapExecution(this.getAttackTarget());
+                this.executeRegularAttacks();
+
+
+//When boss special countdown first reaches warning stage
+                if (this.bossSpecialCountdown == this.leapWarning) 
+                {
+                        ITextComponent msg = new TextComponentTranslation(
+                                "chat.type.text",
+                                "Quazar",
+                                new TextComponentString("REACHED DEFAULT INTO LEAP WARNING")
+                        );
+                        world.getMinecraftServer().getPlayerList().sendMessage(msg);
+//Set creeper state
+                    this.playSound(SoundEvents.ENTITY_CREEPER_PRIMED, 2.0F, 0.8F);
+                    this.setCreeperState(1);
+
+//Set preparing leap
+                    this.behaviorState = BehaviorState.PREPARING_LEAP;
+                }
+            }
+
+
+//Preparing leap state
+            else if(this.behaviorState == BehaviorState.PREPARING_LEAP) 
+            { 
+//Get target distance and if too short clear path
+/*
+                double dist = this.getDistanceSq(attackTarget);
+                if (dist < 40) 
+                {
+                    this.getNavigator().clearPath();
+                }
+*/
+
+
+//Don't move
+                this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(0.0D);
+
+
+//When boss special countdown reaches zero
+                if (this.bossSpecialCountdown < 1)
+                {
+                        ITextComponent msg = new TextComponentTranslation(
+                                "chat.type.text",
+                                "Quazar",
+                                new TextComponentString("REACHED PREPARING INTO 0 COUNTDOWN")
+                        );
+                        world.getMinecraftServer().getPlayerList().sendMessage(msg);
+
+//Some creeper stuff
+                    this.timeSinceIgnited = 0;
+                    this.fuseTime = 30;
+                    this.setCreeperState(-1); 
+
+//Set executing leap
+                    this.behaviorState = BehaviorState.LEAPING_SPECIAL;
+                }
+            }
+
+
+//Leap executing state
+            else if(this.behaviorState == BehaviorState.LEAPING_SPECIAL) 
+            {
+//If boss already should explode on landing
+                if(this.shouldExplodeOnLanding)
+//Decrement explosion wait
+                {
+                    --this.landingExplosionWait;
+                }
+
+//When boss special countdown 
+//is at zero and this isn't already leaping
+                if (this.bossSpecialCountdown == 0 && !this.isPerformingLeap)
+                {
+                        ITextComponent msg = new TextComponentTranslation(
+                                "chat.type.text",
+                                "Quazar",
+                                new TextComponentString("REACHED LEAPING INTO LEAP EXECUTION")
+                        );
+                        world.getMinecraftServer().getPlayerList().sendMessage(msg);
+//Perform the leap
+//Provide boolean for whether this is last leap or not
+                    if(this.leapSequenceAt < this.leapSequenceMax) 
+                    { this.executeLeap(attackTarget, false); }
+                        else { this.executeLeap(attackTarget, true); }
+
+//Set performing leap
+                    this.isPerformingLeap = true;
+//Set to explode on landing
+                    this.shouldExplodeOnLanding = true;
+//But wait 2 ticks so the boss doesn't explode immediately after leaping
+                    --this.landingExplosionWait;
+
+//Some creeper stuff
+                    this.timeSinceIgnited = 0;
+                    this.fuseTime = 30;
+                    this.setCreeperState(-1); 
+               }
+            }
+
+
+//Universal logic if has target...
+
+//Decrement boss special countdown if not mid-special
+            if(this.bossSpecialCountdown > 0 && !this.isPerformingLeap) { this.bossSpecialCountdown--; }
+
+//Check if should explode on landing
+            this.checkSpecialExplode();
         }
-//If no target 
+//If no target
         else 
         {
-//Reset special cooldown
-            this.bossSpecialCountdown = 40;
-//Reset performing special
-            this.isPerformingSpecial = false;
-//Reset leap state and leaps performed
-            this.isPerformingLeap = false;
-            this.leapSequenceAt = 1;
-//Reset movement speed attribute
-            this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(this.movementSpeedAttribute);
+//Reset boss state
+            this.resetBehaviorState();
         }
     }
 
@@ -381,7 +517,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
             1.0F, 1.0D, 1.01D, 
             30 + extraDuration, true, 100, 1.0D, 1, 
             20, true, 2.0F, false, true,
-            true, true, 0.5F, false, false
+            true, false, 0.5F, false, false
         );
 
         this.world.spawnEntity(flameShotHoming);
@@ -392,96 +528,10 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 
     protected void executeBouncingVolley()
     {
-/*
-        Vec3d[] targetBasis = AbsurdcraftMathUtils.makeOrthonormalBasis
-            (new Vec3d(this.getAttackTarget().posX - this.posX, this.getAttackTarget().posY - (this.posY + 16.0D), this.getAttackTarget().posZ - this.posZ));
-        Vec3d orthoRight = targetBasis[0];
-        Vec3d orthoUp = targetBasis[1];
-        Vec3d orthoForward = targetBasis[2];
-
-
-
-//Spin initial ring for fireball angles
-        for(int shotUpAt = 0; shotUpAt < 5; shotUpAt++)
-        {
-//Current ortho-cos
-            Vec3d fireballForward
-            = orthoForward.scale
-            (
-                Math.cos
-                (
-                    (0.2D + (shotUpAt * 0.125D)) * Math.PI + ((rand.nextDouble() - rand.nextDouble()) * 0.2D)
-                )
-            )
-//Add current ortho-sin
-            .add
-            (
-                orthoUp.scale
-                (
-                    Math.sin
-                    (
-                        (0.2D + (shotUpAt * 0.125D)) * Math.PI + ((rand.nextDouble() - rand.nextDouble()) * 0.2D)
-                    )
-                )
-            );
-
-
-//For each band on that ring, rotate around its X axis
-            for(int shotSideAt = -2; shotSideAt <= 2; shotSideAt++)
-            {
-                Vec3d[] ringBasis = AbsurdcraftMathUtils.makeOrthonormalBasis(fireballForward);
-                Vec3d ringRight = ringBasis[0];
-
-
-//Finalized 3d-rotated vector
-                Vec3d fireballNormalized
-//Current ortho-cos
-                = fireballForward.scale
-                (
-                    Math.cos
-                    (
-                        (0.125D * shotSideAt) + ((rand.nextDouble() - rand.nextDouble()) * 0.2D)
-                    )
-                )
-//Add current ortho-sin
-                .add
-                (
-                    ringRight.scale
-                    (
-                        Math.sin
-                        (
-                            (0.125D * shotSideAt) + ((rand.nextDouble() - rand.nextDouble()) * 0.2D)
-                        )
-                    )
-                );
-
-
-//Use final vector for new bouncing fireball
-                EntityFlameShotBouncing flameShotBouncing = new EntityFlameShotBouncing
-                (
-                    this.world, this,
-                    this.posX, this.posY + 16.0D, this.posZ,
-                    200, 
-                    fireballNormalized.x, 
-                    fireballNormalized.y, 
-                    fireballNormalized.z, 
-                    1.0D, 0.08D, 
-                    0.3D, true, false, 5.0F, 
-                    5, 2, 0.06D,
-                    false, true, 0.3D,
-                    20, false, false
-                );
-
-
-                this.world.spawnEntity(flameShotBouncing);
-            }
-        }
-*/
-
         ArrayList<Vec3d> bouncingShotgun = ProjectileUtil.flexibleFibonnaciShotgunCoord
             (this.posX, this.posY + 16.0D, this.posZ, 
             this, this.getAttackTarget(),
-            60, 0.4 * Math.PI, rand.nextInt(2), 1.0D);
+            60, 0.4D * Math.PI, rand.nextInt(2), 1.0D);
 
 
         for(int projectileAt = 0; projectileAt < 60; projectileAt++)
@@ -514,109 +564,14 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 
 
 
-    protected void checkSpecialLeapPreparation(EntityLivingBase leapTarget) 
-    {
-//Get target distance and if too short clear path
-        double dist = this.getDistanceSq(leapTarget);
-        if (dist < 40) 
-        {
-            this.getNavigator().clearPath();
-        }
-
-
-//Decrement boss leap countdown
-        if (this.bossSpecialCountdown > 0) 
-        {
-            this.bossSpecialCountdown--;
-        }
-
-
-//If this is first leap in a sequence
-        if(this.leapSequenceAt == 1)
-        {
-//When boss special countdown first reaches warning stage
-            if (this.bossSpecialCountdown == leapWarning) 
-            {
-//Set creeper state
-                this.playSound(SoundEvents.ENTITY_CREEPER_PRIMED, 2.0F, 0.8F);
-                this.setCreeperState(1);
-
-
-//Set performing special
-                this.isPerformingSpecial = true;
-            }
-
-
-//When boss special countdown is mid warning stage
-            if (this.bossSpecialCountdown <= leapWarning && this.bossSpecialCountdown > 0) 
-            {
-//Stops moving, but will still look at target entity's position
-                this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(0.0D);
-            } 
-
-
-            else 
-            {
-//If not at warning, normal movement speed
-                this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(this.movementSpeedAttribute);
-            }
-        }
-    }
-
-
-
-
-    protected void checkSpecialLeapExecution(EntityLivingBase leapTarget) 
-    {
-//If the boss leap is ready and not mid-leap
-        if (this.bossSpecialCountdown < 1 && !this.isPerformingLeap)
-        {
-//Get target position
-            this.targetLastPosX = (int) leapTarget.posX;
-            this.targetLastPosZ = (int) leapTarget.posZ;
-
-
-//Perform the leap
-//Provide boolean for whether this is last leap or not
-            if(this.leapSequenceAt < this.leapSequenceMax) 
-            { this.executeLeap(leapTarget, false); }
-                else { this.executeLeap(leapTarget, true); }
-
-
-//Set is performing leap
-            this.isPerformingLeap = true;
-//Set to explode on landing
-            this.shouldExplodeOnLanding = true;
-//But wait 2 ticks so the boss doesn't explode immediately after leaping
-            this.landingExplosionWait = 2;
-
-
-//Some creeper stuff
-            this.timeSinceIgnited = 0;
-            this.fuseTime = 30;
-            this.setCreeperState(-1); 
-        }
-    }
-
-
-
-
     protected void executeLeap(EntityLivingBase leapTarget, boolean lastLeapInSequence) 
     {
-        double distanceX;
-        double distanceZ;
+//Set performing leap
+        this.isPerformingLeap = true;
 
 
-        if (this.targetLastPosX != null && this.targetLastPosZ != null) 
-        {
-            distanceX = this.targetLastPosX - this.posX;
-            distanceZ = this.targetLastPosZ - this.posZ;
-        } 
-        else // fallback position, in case of null
-        {
-            distanceX = 0;
-            distanceZ = 0;
-        }
+        double distanceX = this.getAttackTarget().posX - this.posX;
+        double distanceZ = this.getAttackTarget().posZ - this.posZ;
 
 
         this.playSound(SoundEvents.BLOCK_CLOTH_PLACE, 2.0F, 0.3F);
@@ -629,9 +584,18 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 //If not last leap do a basic leap
             if(!lastLeapInSequence)
             {
-//Leap behind target
+
+            ITextComponent msg = new TextComponentTranslation(
+                    "chat.type.text",
+                    "Quazar",
+                    new TextComponentString("Furnace, open")
+            );
+
+            world.getMinecraftServer().getPlayerList().sendMessage(msg);
+
+//Leap at target
                 this.motionX = distanceX / 6.5D;
-                this.motionY = 2;
+                this.motionY = 2.0D;
                 this.motionZ = distanceZ / 6.5D;
             }
 //If last leap do a harder leap
@@ -654,7 +618,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
     //Leap behind target
                     case 0:
                         this.motionX = distanceX / (4.5D);
-                        this.motionY = 2.0;
+                        this.motionY = 2.0D;
                         this.motionZ = distanceZ / (4.5D);
                         break;
     //Side-leap 
@@ -670,14 +634,14 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
                         double targetHorizontalDistance = Math.sqrt(distanceX * distanceX + distanceZ * distanceZ);
 
                         this.motionX = (distanceX + (Math.cos(radiansSideways) * 20.0D)) / 5.0D;
-                        this.motionY = 1.0;
+                        this.motionY = 1.0D;
                         this.motionZ = (distanceZ + (Math.sin(radiansSideways) * 20.0D)) / 5.0D;
                         break;
     //Predictive leap
                     case 2:
-                        this.motionX = (distanceX + (leapTarget.motionX * 20)) / 7.0D;
-                        this.motionY = 2;
-                        this.motionZ = (distanceZ + (leapTarget.motionZ * 20)) / 7.0D;
+                        this.motionX = (distanceX + (leapTarget.motionX * 20)) / 5.5D;
+                        this.motionY = 1.5D;
+                        this.motionZ = (distanceZ + (leapTarget.motionZ * 20)) / 5.5D;
                         break; 
                 }
             }
@@ -686,66 +650,16 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 
 
 
-    protected void checkLandingExplosions()
+
+    private void checkSpecialExplode() 
     {
-
-//If this is on ground
-        if (this.onGround)
-        {
-
-//And this should explode on landing
-            if (this.shouldExplodeOnLanding) 
-            {
-//And just landed for explosion
-                if(this.landingExplosionWait == 2)
-                {
-//Perform warning explosion
-                    this.world.newExplosion(this, this.posX, this.posY, this.posZ, (float) this.leapLandingRadius, false, false); 
-                }
-
-
-//If explosion wait over
-                if (this.landingExplosionWait < 1) 
-                {
-//Giga explosion
-                    this.specialExplode();
-//Then reset explosion wait
-                    this.landingExplosionWait = 2;
-                }
-
-
-                else 
-                {
-//Else decrement explosion wait
-                    this.landingExplosionWait--;
-                }
-            } 
-        }
-    }
-
-
-
-
-    private void specialExplode() 
-    {
-        if (!this.shouldExplodeOnLanding) 
+        if (!this.shouldExplodeOnLanding || !this.onGround || (this.landingExplosionWait > 0)) 
         {
             return;
         }
 
 
-        ITextComponent msg = new TextComponentTranslation(
-                "chat.type.text",
-                "Quazar",
-                new TextComponentString("Furnace, open")
-        );
 
-        world.getMinecraftServer().getPlayerList().sendMessage(msg);
-
-
-        this.shouldExplodeOnLanding = false;
-        this.targetLastPosX = null;
-        this.targetLastPosZ = null;
 
         List<EntityLivingBase> entitiesInBlast = this.world.getEntitiesWithinAABB
         (
@@ -782,6 +696,8 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
         }
 
 
+
+
         if(!this.world.isRemote)
         {
             for(int shockwaveAt = 0; shockwaveAt < 8; shockwaveAt++)
@@ -793,7 +709,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
                 100, 0.15D, 1.5D, 
                 1.01D, 0.0D, 
                 0.3D, true, true, 5.0F,
-                20, true,
+                20, false,
                 0.0D, 4.0D, 0.0D, 1.01D,
                 10, 3.0F, false);
 		        shockwave.setLocationAndAngles(this.posX, this.posY, this.posZ, this.rotationYaw, 0.0F);
@@ -820,7 +736,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
                     100, 0.15D, 1.5D,
                     1.01D, 0.0D,
                     0.3D, true, true, 5.0F,
-                    20, true,
+                    20, false,
                     0.0D, 4.0D, 0.0D, 1.01D,
                     10, 3.0F, false);
 		            shockwave.setLocationAndAngles(this.posX, this.posY, this.posZ, this.rotationYaw, 0.0F);
@@ -828,11 +744,10 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 		            this.getEntityWorld().spawnEntity(shockwave);
                 }
             } 
-        }
 
 
-        if(!this.world.isRemote)
-        {
+
+
 //Now the thrown blocks and exploding fireballs
 
             double horizontalDistance = 32.0D;
@@ -845,17 +760,13 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 
 
                 double flameStartingRadians = 
-                    Math.atan2(this.getAttackTarget().posZ - this.posZ, this.getAttackTarget().posX - this.posX) - (-1.3D * Math.PI);
-                double blockStartingRadians = 
                     Math.atan2(this.getAttackTarget().posZ - this.posZ, this.getAttackTarget().posX - this.posX);
-                double flameCurrentRadians = flameStartingRadians;
-                double blockCurrentRadians = blockStartingRadians;
 
 
-                for(int flameShotAt = 0; flameShotAt < 4; flameShotAt++)
+                for(int flameShotAt = -2; flameShotAt < 2; flameShotAt++)
                 {
 //Get distance addition (Up to 32 blocks offset)
-                    double distanceAddition = 32.0D * (rand.nextDouble() - rand.nextDouble());
+                    double distanceAddition = 32.0D * (rand.nextDouble());
 
 //Up to double the angle and projectile count randomly
                     double randomSpreadScale = rand.nextDouble() * 2.0D;
@@ -864,11 +775,11 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
                     (
                         this.world, this,
                         this.posX, this.posY, this.posZ,
-                        25, 
-                        Math.cos(flameCurrentRadians) * (horizontalDistance + distanceAddition) / 40.0D,
-//Random amount 1.5D to 2.0D
-                        1.0D * (0.5D + (rand.nextDouble() * 0.2D)),
-                        Math.sin(flameCurrentRadians) * (horizontalDistance + distanceAddition) / 40.0D,
+                        15, 
+                        Math.cos(flameStartingRadians + (0.125D * Math.PI * flameShotAt)) * (horizontalDistance + distanceAddition) / 25.0D,
+//Random amount 0.64D to 0.8D
+                        0.64D * (1.0D + (rand.nextDouble() * 0.25D)),
+                        Math.sin(flameStartingRadians + (0.125D * Math.PI * flameShotAt)) * (horizontalDistance + distanceAddition) / 25.0D,
                         1.0D, 0.08D, 
                         1.2D, true, true, 5.0F, 
                         10, 5, 0.06D,
@@ -880,93 +791,67 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
                     flameShotExplosive.setNoGravity(false);
                     flameShotExplosive.setLocationAndAngles(this.posX, this.posY, this.posZ, this.rotationYaw, 0.0F);
                     this.getEntityWorld().spawnEntity(flameShotExplosive);
-
-                    flameCurrentRadians += (0.5D + (0.3D * rand.nextDouble())) * Math.PI;
                 }
-
- 
-
-//Throw the blocks
-                for(int thrownBlockAt = 0; thrownBlockAt < 50; thrownBlockAt++)
-                {
-//Search blockpos to determine appearance
-                    BlockPos blockOrigin = EntityUtil.findSolidBlockBelow(this, 16);
-
-                    if(blockOrigin != null)
-                    {
-//Get distance addition (Up to 32 blocks offset)
-                        double distanceAddition = 32.0D * (rand.nextDouble() - rand.nextDouble());
-
-                        EntityThrownBlock thrownBlock = new EntityThrownBlock
-                        (
-                            this.world, this.posX, this.posY, this.posZ, this, blockOrigin, 10.0F
-                        );
-                        thrownBlock.setLocationAndAngles(this.posX, this.posY, this.posZ, this.rotationYaw, 0.0F);
-
-                        thrownBlock.motionX = Math.cos(blockCurrentRadians) * ((horizontalDistance * rand.nextDouble()) + distanceAddition) / 18D;
-                        thrownBlock.motionY = 2.0D * (1.0D + (rand.nextDouble() * 0.5D));
-                        thrownBlock.motionZ = Math.sin(blockCurrentRadians) * ((horizontalDistance * rand.nextDouble()) + distanceAddition) / 18D;
-
-                        this.getEntityWorld().spawnEntity(thrownBlock);
-
-                        blockCurrentRadians += (0.5D + (0.3D * rand.nextDouble())) * Math.PI;
-                    }
-                }
-
-
-                for(int aimedBlockAt = 0; aimedBlockAt < 50; aimedBlockAt++)
-                {
-//Search blockpos to determine appearance
-                    BlockPos blockOrigin = EntityUtil.findSolidBlockBelow(this, 16);
-
-                    if(blockOrigin != null)
-                    {
-//Get distance addition (Up to 32 blocks offset)
-                        double distanceAddition = 32.0D * (rand.nextDouble() - rand.nextDouble());
-
-                        EntityThrownBlock thrownBlock = new EntityThrownBlock
-                        (
-                            this.world, this.posX, this.posY, this.posZ, this, blockOrigin, 10.0F
-                        );
-                        thrownBlock.setLocationAndAngles(this.posX, this.posY, this.posZ, this.rotationYaw, 0.0F);
-
-                        thrownBlock.motionX =
-                            Math.cos(blockStartingRadians + ((rand.nextDouble() - rand.nextDouble()) * (0.5 * Math.PI))) * ((horizontalDistance * rand.nextDouble()) + distanceAddition) / 18D;
-                        thrownBlock.motionY = 2.0D * (1.0D + (rand.nextDouble() * 0.5D));
-                        thrownBlock.motionZ =
-                            Math.sin(blockStartingRadians + ((rand.nextDouble() - rand.nextDouble()) * (0.5 * Math.PI))) * ((horizontalDistance * rand.nextDouble()) + distanceAddition) / 18D;
-
-                        this.getEntityWorld().spawnEntity(thrownBlock);
-                    }
-                }     
             }
         }
 
 
-//Finish special explosion by 
+//Finish special explosion by...
 
-//Incrementing leaps executed
-        ++this.leapSequenceAt;
+//No longer exploding on landing
+        this.shouldExplodeOnLanding = false;
+//Setting not performing leap
+        this.isPerformingLeap = false;
 
 
-//Applying different cooldowns
-        if(this.leapSequenceAt <= this.leapSequenceMax) 
+//If not max leap
+        if(this.leapSequenceAt < this.leapSequenceMax) 
         { 
-//Separate cooldowns based on which leap at
+//Applying short cooldown
             this.bossSpecialCountdown = this.leapSequenceCooldown;
+//Incrementing leaps executed
+            ++this.leapSequenceAt;
+//Wait a bit before explosion again
+            this.landingExplosionWait = 2;
         }
+
 //If last leap
         else
-        { 
+        {
+//Restoring movement speed
+            this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(this.movementSpeedAttribute);
+//Applying longer cooldown
             this.bossSpecialCountdown = this.specialCooldown;
-//Reset special state
-            this.isPerformingSpecial = false; 
-            this.leapSequenceAt = 1;        
+//Resetting leaps executed
+            this.leapSequenceAt = 1;
+//Wait a bit before explosion again
+            this.landingExplosionWait = 2;     
+//Resetting state
+            this.behaviorState = BehaviorState.DEFAULT;   
         }
+    }
 
 
-//Set not performing leap
-        this.isPerformingLeap = false;
+
+
+//Stun logic
+    public boolean attackEntityFrom(DamageSource source, float amount)
+    {
+//If attacked in the middle of max leap
+        if(this.isPerformingLeap && (this.leapSequenceAt >= this.leapSequenceMax))
+        {
+//If damage is melee and high enough
+            if((source.damageType.equals("mob") || source.damageType.equals("player"))
+            && (amount >= (float) 10.0F))
+            {
+//And apply stun
+                this.livingEntityMixin.setAbsurdcraftStunned(true);
+                this.livingEntityMixin.setAbsurdcraftStunnedTimer(200);
+            }      
+        }
+        
+
+        return super.attackEntityFrom(source, amount);
     }
 
 
