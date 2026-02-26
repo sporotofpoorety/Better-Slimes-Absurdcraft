@@ -22,16 +22,16 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.network.datasync.DataParameter;
 import net.minecraft.network.datasync.DataSerializers;
 import net.minecraft.network.datasync.EntityDataManager;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.util.math.AxisAlignedBB;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.BossInfo;
 import net.minecraft.world.BossInfoServer;
 import net.minecraft.world.EnumDifficulty;
@@ -39,7 +39,9 @@ import net.minecraft.world.World;
 import net.minecraftforge.common.config.Configuration;
 import net.minecraftforge.fml.common.registry.ForgeRegistries;
 
+import org.sporotofpoorety.eternitymode.entity.EntityEarthPiece;
 import org.sporotofpoorety.eternitymode.entity.EntityExplosiveShockwave;
+import org.sporotofpoorety.eternitymode.entity.EntityOrbVoidCustom;
 import org.sporotofpoorety.eternitymode.entity.EntityThrownBlock;
 import org.sporotofpoorety.eternitymode.entity.ai.EntityAIStun;
 import org.sporotofpoorety.eternitymode.entity.projectile.EntityFlameShotBouncing;
@@ -228,7 +230,6 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
     @Override
     public void onUpdate() 
     {
-
 //When Quazar lands
         if (this.onGround && !this.wasOnGroundPreviousTick)
         {
@@ -276,12 +277,47 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
         }
 
 
-
         EntityLivingBase attackTarget = this.getAttackTarget();
 
 //If this has target
         if (attackTarget != null) 
         {
+//Every 30 seconds
+            if((this.ticksExisted % 600) == 0)
+            {
+                double radianAt = 0.0D;
+
+                for(int pieceAt = 0; pieceAt < 8; pieceAt++)
+                {
+                    double randomDistance = 16.0D + (rand.nextDouble() * 48.0D);
+                    
+                    EntityEarthPiece earthPiece = new EntityEarthPiece(this.world, this,
+                    this.posX + randomDistance * Math.cos(radianAt), this.posY + 4.0D, this.posZ + randomDistance * Math.sin(radianAt), 
+                    "spin", "cube", 1,
+                    10, 20, 1.0D,
+                    10, 16.0D,
+                    40, 0.5D,
+                    1.0D, 1.0D, 0.08D,
+                    20);
+
+                    earthPiece.setPieceSpin(100 + ((pieceAt + 1) * 25), 24.0D, radianAt, 0.1D);
+
+                    this.world.spawnEntity(earthPiece);
+
+                    radianAt += 0.25D;
+                }
+
+
+
+                ITextComponent msg = new TextComponentTranslation
+                (
+                        "chat.type.text",
+                        "Quazar",
+                        new TextComponentString("Earth's sorcery is quite advanced")
+                );
+                world.getMinecraftServer().getPlayerList().sendMessage(msg);
+            }
+
 //Default state
             if(this.behaviorState == BehaviorState.DEFAULT) 
             { 
@@ -292,12 +328,6 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 //When boss special countdown first reaches warning stage
                 if (this.bossSpecialCountdown == this.leapWarning) 
                 {
-                        ITextComponent msg = new TextComponentTranslation(
-                                "chat.type.text",
-                                "Quazar",
-                                new TextComponentString("REACHED DEFAULT INTO LEAP WARNING")
-                        );
-                        world.getMinecraftServer().getPlayerList().sendMessage(msg);
 //Set creeper state
                     this.playSound(SoundEvents.ENTITY_CREEPER_PRIMED, 2.0F, 0.8F);
                     this.setCreeperState(1);
@@ -306,6 +336,8 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
                     this.behaviorState = BehaviorState.PREPARING_LEAP;
                 }
             }
+
+
 
 
 //Preparing leap state
@@ -328,13 +360,6 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 //When boss special countdown reaches zero
                 if (this.bossSpecialCountdown < 1)
                 {
-                        ITextComponent msg = new TextComponentTranslation(
-                                "chat.type.text",
-                                "Quazar",
-                                new TextComponentString("REACHED PREPARING INTO 0 COUNTDOWN")
-                        );
-                        world.getMinecraftServer().getPlayerList().sendMessage(msg);
-
 //Some creeper stuff
                     this.timeSinceIgnited = 0;
                     this.fuseTime = 30;
@@ -344,6 +369,8 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
                     this.behaviorState = BehaviorState.LEAPING_SPECIAL;
                 }
             }
+
+
 
 
 //Leap executing state
@@ -360,12 +387,6 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 //is at zero and this isn't already leaping
                 if (this.bossSpecialCountdown == 0 && !this.isPerformingLeap)
                 {
-                        ITextComponent msg = new TextComponentTranslation(
-                                "chat.type.text",
-                                "Quazar",
-                                new TextComponentString("REACHED LEAPING INTO LEAP EXECUTION")
-                        );
-                        world.getMinecraftServer().getPlayerList().sendMessage(msg);
 //Perform the leap
 //Provide boolean for whether this is last leap or not
                     if(this.leapSequenceAt < this.leapSequenceMax) 
@@ -615,13 +636,13 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 
                 switch (finalLeapTypeChosen) 
                 {
-    //Leap behind target
+//Leap behind target
                     case 0:
                         this.motionX = distanceX / (4.5D);
                         this.motionY = 2.0D;
                         this.motionZ = distanceZ / (4.5D);
                         break;
-    //Side-leap 
+//Side-leap 
                     case 1:
                         double baseRadians = Math.atan2(distanceZ, distanceX);
                         double radiansSideways = 0.0D;
@@ -637,7 +658,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
                         this.motionY = 1.0D;
                         this.motionZ = (distanceZ + (Math.sin(radiansSideways) * 20.0D)) / 5.0D;
                         break;
-    //Predictive leap
+//Predictive leap
                     case 2:
                         this.motionX = (distanceX + (leapTarget.motionX * 20)) / 5.5D;
                         this.motionY = 1.5D;
@@ -705,13 +726,10 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
                 EntityExplosiveShockwave shockwave = new EntityExplosiveShockwave(this.world, this, this.posX, this.posY, this.posZ, 
                 100, true, 3.0F, 1.0D * Math.cos(Math.PI * 0.25D * shockwaveAt), 0.0D, 1.0D * Math.sin(Math.PI * 0.25D * shockwaveAt), 1.015D,
                 true, 3.0D, 15,
-                2, 3.0F, 6, false, false, 8,
-                100, 0.15D, 1.5D, 
-                1.01D, 0.0D, 
-                0.3D, true, true, 5.0F,
-                20, false,
+                2, 3.0F, 6, 
+                false,
                 0.0D, 4.0D, 0.0D, 1.01D,
-                10, 3.0F, false);
+                10, 3.0F);
 		        shockwave.setLocationAndAngles(this.posX, this.posY, this.posZ, this.rotationYaw, 0.0F);
 
 		        this.getEntityWorld().spawnEntity(shockwave);
@@ -732,13 +750,10 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
                     EntityExplosiveShockwave shockwave = new EntityExplosiveShockwave(this.world, this, this.posX, this.posY, this.posZ, 
                     50, true, 3.0F, 2.0D * Math.cos(baseRadians + (Math.PI * 0.125D * angleAt)), 0.0D, 2.0D * Math.sin(baseRadians + (Math.PI * 0.125D * angleAt)), 1.015D,
                     true, 3.0D, 15, 
-                    2, 3.0F, 6, aimedShockwavesSetFire, false, 8,
-                    100, 0.15D, 1.5D,
-                    1.01D, 0.0D,
-                    0.3D, true, true, 5.0F,
-                    20, false,
+                    2, 3.0F, 6,
+                    false,
                     0.0D, 4.0D, 0.0D, 1.01D,
-                    10, 3.0F, false);
+                    10, 3.0F);
 		            shockwave.setLocationAndAngles(this.posX, this.posY, this.posZ, this.rotationYaw, 0.0F);
 
 		            this.getEntityWorld().spawnEntity(shockwave);
@@ -793,6 +808,19 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
                     this.getEntityWorld().spawnEntity(flameShotExplosive);
                 }
             }
+
+
+
+
+            EntityOrbVoidCustom shinraTensei 
+                = new EntityOrbVoidCustom(this.world, null, this, 7, 5, 2.0F, 2.0F, 80, 90);
+            shinraTensei.orbCustomType = "blockshower";
+            shinraTensei.setOrbShower
+                (3.0D, 80.0D,
+                150, 100,
+                10.0D, -2.0D, 0.96D);
+            shinraTensei.setLocationAndAngles(this.posX, this.posY + 16.0D, this.posZ, this.rotationYaw, 0.0F);
+            this.getEntityWorld().spawnEntity(shinraTensei);
         }
 
 
