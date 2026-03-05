@@ -1,6 +1,7 @@
 package com.mic.betterslimes.entity.slimes;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import javax.annotation.Nullable;
 
@@ -41,7 +42,6 @@ import net.minecraftforge.fml.common.registry.ForgeRegistries;
 
 import org.sporotofpoorety.eternitymode.entity.EntityEarthPiece;
 import org.sporotofpoorety.eternitymode.entity.EntityExplosiveShockwave;
-import org.sporotofpoorety.eternitymode.entity.EntityOrbVoidCustom;
 import org.sporotofpoorety.eternitymode.entity.EntityThrownBlock;
 import org.sporotofpoorety.eternitymode.entity.ai.EntityAIStun;
 import org.sporotofpoorety.eternitymode.entity.projectile.EntityFlameShotBouncing;
@@ -52,7 +52,7 @@ import org.sporotofpoorety.eternitymode.util.AbsurdcraftMathUtils;
 import org.sporotofpoorety.eternitymode.util.EntityUtil;
 import org.sporotofpoorety.eternitymode.util.ProjectileUtil;
 
-import java.util.List;
+import org.sporotofpoorety.srpabsurdcraft.entity.EntityOrbVoidCustom;
 
 
 
@@ -300,11 +300,11 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
                     1.0D, 1.0D, 0.08D,
                     20);
 
-                    earthPiece.setPieceSpin(100 + ((pieceAt + 1) * 25), 24.0D, radianAt, 0.1D);
+                    earthPiece.setPieceSpin(100 + ((pieceAt + 1) * 25), 24.0D, radianAt, 0.1D * Math.PI);
 
                     this.world.spawnEntity(earthPiece);
 
-                    radianAt += 0.25D;
+                    radianAt += 0.25D * Math.PI;
                 }
 
 
@@ -724,9 +724,10 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
             for(int shockwaveAt = 0; shockwaveAt < 8; shockwaveAt++)
             {
                 EntityExplosiveShockwave shockwave = new EntityExplosiveShockwave(this.world, this, this.posX, this.posY, this.posZ, 
-                100, true, 3.0F, 1.0D * Math.cos(Math.PI * 0.25D * shockwaveAt), 0.0D, 1.0D * Math.sin(Math.PI * 0.25D * shockwaveAt), 1.015D,
+                50, true, 3.0F, 1.0D * Math.cos(Math.PI * 0.25D * shockwaveAt), 0.0D, 1.0D * Math.sin(Math.PI * 0.25D * shockwaveAt), 1.015D,
                 true, 3.0D, 15,
-                2, 3.0F, 6, 
+                5, 3.0D, 1.0F,
+                true, 0.3D, false, 20, 
                 false,
                 0.0D, 4.0D, 0.0D, 1.01D,
                 10, 3.0F);
@@ -748,9 +749,10 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
                 for(int angleAt = -2; angleAt <= 2; angleAt++)
                 {
                     EntityExplosiveShockwave shockwave = new EntityExplosiveShockwave(this.world, this, this.posX, this.posY, this.posZ, 
-                    50, true, 3.0F, 2.0D * Math.cos(baseRadians + (Math.PI * 0.125D * angleAt)), 0.0D, 2.0D * Math.sin(baseRadians + (Math.PI * 0.125D * angleAt)), 1.015D,
+                    25, true, 3.0F, 2.0D * Math.cos(baseRadians + (Math.PI * 0.125D * angleAt)), 0.0D, 2.0D * Math.sin(baseRadians + (Math.PI * 0.125D * angleAt)), 1.015D,
                     true, 3.0D, 15, 
-                    2, 3.0F, 6,
+                    5, 3.0D, 1.0F,
+                    false, 0.3D, aimedShockwavesSetFire, 20,
                     false,
                     0.0D, 4.0D, 0.0D, 1.01D,
                     10, 3.0F);
@@ -791,11 +793,11 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
                         this.world, this,
                         this.posX, this.posY, this.posZ,
                         15, 
-                        Math.cos(flameStartingRadians + (0.125D * Math.PI * flameShotAt)) * (horizontalDistance + distanceAddition) / 25.0D,
-//Random amount 0.64D to 0.8D
-                        0.64D * (1.0D + (rand.nextDouble() * 0.25D)),
-                        Math.sin(flameStartingRadians + (0.125D * Math.PI * flameShotAt)) * (horizontalDistance + distanceAddition) / 25.0D,
-                        1.0D, 0.08D, 
+                        Math.cos(flameStartingRadians + (0.125D * Math.PI * flameShotAt)) * (horizontalDistance + distanceAddition) / 10.0D,
+//Random amount 2.0D to 2.5D
+                        2.0D * (1.0D + (rand.nextDouble() * 0.5D)),
+                        Math.sin(flameStartingRadians + (0.125D * Math.PI * flameShotAt)) * (horizontalDistance + distanceAddition) / 10.0D,
+                        1.0D, 0.04D, 
                         1.2D, true, true, 5.0F, 
                         10, 5, 0.06D,
                         (int) (50 * randomSpreadScale), (0.175D * Math.PI) * randomSpreadScale, rand.nextInt(2),
