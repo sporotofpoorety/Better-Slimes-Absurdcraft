@@ -291,14 +291,16 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
                 {
                     double randomDistance = 16.0D + (rand.nextDouble() * 48.0D);
                     
-                    EntityEarthPiece earthPiece = new EntityEarthPiece(this.world, this,
-                    this.posX + randomDistance * Math.cos(radianAt), this.posY + 4.0D, this.posZ + randomDistance * Math.sin(radianAt), 
-                    "spin", "cube", 1,
-                    10, 20, 1.0D,
+
+                    EntityEarthPiece earthPiece = new EntityEarthPiece(this.world,
+                    this.posX + randomDistance * Math.cos(radianAt), this.posY + 4.0D, this.posZ + randomDistance * Math.sin(radianAt),
+                    this, 
+                    "spin", "cube", 2,
+                    20, 
+                    20, 1.0D,
                     10, 16.0D,
                     40, 0.5D,
-                    1.0D, 1.0D, 0.08D,
-                    20);
+                    40, 1.0D, 3.0D, 0.08D);
 
                     earthPiece.setPieceSpin(100 + ((pieceAt + 1) * 25), 24.0D, radianAt, 0.1D * Math.PI);
 
@@ -525,8 +527,9 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 
         EntityFlameShotHoming flameShotHoming = new EntityFlameShotHoming
         (
-            this.world, this,
+            this.world,
             this.posX, this.posY, this.posZ,
+            this,
             200,
             (targetHorizontalDistance + 32.0D) * Math.cos(currentRadians) / (30 + extraDuration), 
             0.25D, 
@@ -537,7 +540,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
             100, Math.PI, 0,
             1.0F, 1.0D, 1.01D, 
             30 + extraDuration, true, 100, 1.0D, 1, 
-            20, true, 2.0F, false, true,
+            20, true, 4.0F, false, true,
             true, false, 0.5F, false, false
         );
 
@@ -562,8 +565,9 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 
             EntityFlameShotBouncing flameShotBouncing = new EntityFlameShotBouncing
             (
-                this.world, this,
+                this.world,
                 this.posX, this.posY + 16.0D, this.posZ,
+                this,
                 120, 
                 currentDirection.x, 
                 currentDirection.y, 
@@ -723,14 +727,12 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
         {
             for(int shockwaveAt = 0; shockwaveAt < 8; shockwaveAt++)
             {
-                EntityExplosiveShockwave shockwave = new EntityExplosiveShockwave(this.world, this, this.posX, this.posY, this.posZ, 
-                50, true, 3.0F, 1.0D * Math.cos(Math.PI * 0.25D * shockwaveAt), 0.0D, 1.0D * Math.sin(Math.PI * 0.25D * shockwaveAt), 1.015D,
+                EntityExplosiveShockwave shockwave = new EntityExplosiveShockwave(this.world, this.posX, this.posY, this.posZ,
+                this, 
+                50, true, 3.0F, 2.0D * Math.cos(Math.PI * 0.25D * shockwaveAt), 0.0D, 2.0D * Math.sin(Math.PI * 0.25D * shockwaveAt), 1.021D,
                 true, 3.0D, 15,
-                5, 3.0D, 1.0F,
-                true, 0.3D, false, 20, 
-                false,
-                0.0D, 4.0D, 0.0D, 1.01D,
-                10, 3.0F);
+                3, 4.0D, 1.0F,
+                true, 2.0D, false, 0, 20);
 		        shockwave.setLocationAndAngles(this.posX, this.posY, this.posZ, this.rotationYaw, 0.0F);
 
 		        this.getEntityWorld().spawnEntity(shockwave);
@@ -741,6 +743,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 
 //Only last batch set fire to ground
             boolean aimedShockwavesSetFire = (this.leapSequenceAt >= this.leapSequenceMax);
+            int aimedShockwavesParticleType = (this.leapSequenceAt >= this.leapSequenceMax) ? 1 : 0;
 
             if (quazarAttackTarget != null)
             {
@@ -748,14 +751,12 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 
                 for(int angleAt = -2; angleAt <= 2; angleAt++)
                 {
-                    EntityExplosiveShockwave shockwave = new EntityExplosiveShockwave(this.world, this, this.posX, this.posY, this.posZ, 
-                    25, true, 3.0F, 2.0D * Math.cos(baseRadians + (Math.PI * 0.125D * angleAt)), 0.0D, 2.0D * Math.sin(baseRadians + (Math.PI * 0.125D * angleAt)), 1.015D,
+                    EntityExplosiveShockwave shockwave = new EntityExplosiveShockwave(this.world,this.posX, this.posY, this.posZ,
+                    this,  
+                    25, true, 3.0F, 4.0D * Math.cos(baseRadians + (Math.PI * 0.125D * angleAt)), 0.0D, 4.0D * Math.sin(baseRadians + (Math.PI * 0.125D * angleAt)), 1.044D,
                     true, 3.0D, 15, 
-                    5, 3.0D, 1.0F,
-                    false, 0.3D, aimedShockwavesSetFire, 20,
-                    false,
-                    0.0D, 4.0D, 0.0D, 1.01D,
-                    10, 3.0F);
+                    2, 4.0D, 1.0F,
+                    true, 2.0D, aimedShockwavesSetFire, aimedShockwavesParticleType, 20);
 		            shockwave.setLocationAndAngles(this.posX, this.posY, this.posZ, this.rotationYaw, 0.0F);
 
 		            this.getEntityWorld().spawnEntity(shockwave);
@@ -790,13 +791,14 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 
                     EntityFlameShotLinearSplits flameShotExplosive = new EntityFlameShotLinearSplits
                     (
-                        this.world, this,
+                        this.world,
                         this.posX, this.posY, this.posZ,
+                        this, 
                         15, 
-                        Math.cos(flameStartingRadians + (0.125D * Math.PI * flameShotAt)) * (horizontalDistance + distanceAddition) / 10.0D,
+                        Math.cos(flameStartingRadians + (0.125D * Math.PI * flameShotAt)) * (horizontalDistance + distanceAddition) / 8.0D,
 //Random amount 2.0D to 2.5D
                         2.0D * (1.0D + (rand.nextDouble() * 0.5D)),
-                        Math.sin(flameStartingRadians + (0.125D * Math.PI * flameShotAt)) * (horizontalDistance + distanceAddition) / 10.0D,
+                        Math.sin(flameStartingRadians + (0.125D * Math.PI * flameShotAt)) * (horizontalDistance + distanceAddition) / 8.0D,
                         1.0D, 0.04D, 
                         1.2D, true, true, 5.0F, 
                         10, 5, 0.06D,
@@ -813,9 +815,9 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 
 
 
-
+/*
             EntityOrbVoidCustom shinraTensei 
-                = new EntityOrbVoidCustom(this.world, null, this, 7, 5, 2.0F, 2.0F, 80, 90);
+                = new EntityOrbVoidCustom(this.world, null, this, 7, 5, 8.0F, 8.0F, 80, 90);
             shinraTensei.orbCustomType = "blockshower";
             shinraTensei.setOrbShower
                 (3.0D, 80.0D,
@@ -823,6 +825,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
                 10.0D, -2.0D, 0.96D);
             shinraTensei.setLocationAndAngles(this.posX, this.posY + 16.0D, this.posZ, this.rotationYaw, 0.0F);
             this.getEntityWorld().spawnEntity(shinraTensei);
+*/
         }
 
 
