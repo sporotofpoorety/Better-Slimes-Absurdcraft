@@ -26,6 +26,7 @@ import net.minecraft.network.datasync.EntityDataManager;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.SoundCategory;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
@@ -40,6 +41,7 @@ import net.minecraft.world.World;
 import net.minecraftforge.common.config.Configuration;
 import net.minecraftforge.fml.common.registry.ForgeRegistries;
 
+import org.sporotofpoorety.eternitymode.core.EternityModeSoundEvents;
 import org.sporotofpoorety.eternitymode.entity.EntityEarthPiece;
 import org.sporotofpoorety.eternitymode.entity.EntityExplosiveShockwave;
 import org.sporotofpoorety.eternitymode.entity.EntityThrownBlock;
@@ -50,6 +52,7 @@ import org.sporotofpoorety.eternitymode.entity.projectile.EntityFlameShotLinearS
 import org.sporotofpoorety.eternitymode.interfacemixins.IMixinEntityLiving;
 import org.sporotofpoorety.eternitymode.util.AbsurdcraftMathUtils;
 import org.sporotofpoorety.eternitymode.util.EntityUtil;
+import org.sporotofpoorety.eternitymode.util.ExplosionUtil;
 import org.sporotofpoorety.eternitymode.util.ProjectileUtil;
 
 import org.sporotofpoorety.srpabsurdcraft.entity.EntityOrbVoidCustom;
@@ -58,16 +61,12 @@ import org.sporotofpoorety.srpabsurdcraft.entity.EntityOrbVoidCustom;
 
 
 // Renamed from King Slime to Quazar
-public class Quazar extends EntityBetterSlime implements ISpecialSlime {
+public class Quazar extends EntityBetterSlime implements ISpecialSlime 
+{
 
 //These are unrelated to the boss itself
-    public static final int MAX = Short.MAX_VALUE;
     private final BossInfoServer bossInfo 
         = (BossInfoServer) (new BossInfoServer(this.getDisplayName(), BossInfo.Color.BLUE, BossInfo.Overlay.PROGRESS));
-//Creeper state
-    private static final DataParameter<Integer> STATE = EntityDataManager.<Integer>createKey(Quazar.class, DataSerializers.VARINT);
-    private int timeSinceIgnited;
-    private int fuseTime;
 
 
 
@@ -76,44 +75,11 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
     public IMixinEntityLiving livingEntityMixin;
 
 
-//Attack state
-    public enum BehaviorState 
-    {
-        DEFAULT,
-        PREPARING_LEAP,
-        LEAPING_SPECIAL
-    }
-    public BehaviorState behaviorState;
-
-
-//  ArrayList<Integer> currentAttacksProjectile = new ArrayList<>();
-//  ArrayList<Integer> currentAttacksMovement = new ArrayList<>();
-    int currentAttackProjectile;
-    int currentAttackMovement;    
-
-
-    public int bossSpecialCountdown;
-
-
-    private boolean wasOnGroundPreviousTick;
-    private boolean isPerformingLeap;
-    protected boolean shouldExplodeOnLanding;
-    private int landingExplosionWait;
-    public int leapSequenceAt;
-
-
 
 
 //Values config
-    public boolean spawnMinions;
-    private static final DataParameter<Integer> SPAWN_TIME 
-        = EntityDataManager.<Integer>createKey(Quazar.class, DataSerializers.VARINT);
-    public static String splitSlimeString;
-    protected Class<? extends Entity> SplitSlime;
-
-
-    private double movementSpeedAttribute;
     public float movementSpeedMultiplier;
+    private double movementSpeedAttribute;
 
 
     public int specialCooldown;
@@ -122,10 +88,31 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
     public int leapSequenceMax;
     public int leapSequenceCooldown;
     public int leapWarning;
-    public float leapVelocityMultiplierXZ;
-    public float leapVelocityMultiplierY;
+    public float leapVelocityMultiplier;
     public int leapLandingRadius;
     public float leapLandingDamage;
+
+
+
+
+//Attack state
+    public String behaviorState;
+
+
+//  ArrayList<Integer> currentAttacksProjectile = new ArrayList<>();
+//  ArrayList<Integer> currentAttacksMovement = new ArrayList<>();
+    int currentAttackProjectile;
+    int currentAttackMovement;    
+
+
+    public int specialCooldownCurrent;
+
+
+    private boolean wasOnGroundPreviousTick;
+    private boolean isPerformingLeap;
+    protected boolean shouldExplodeOnLanding;
+    private int landingExplosionWait;
+    public int leapSequenceAt;
 
 
 
@@ -141,12 +128,6 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 
         this.isImmuneToFire = true;
 
-//These are unrelated to the boss itself
-        this.dataManager.register(STATE, Integer.valueOf(-1));
-        this.setCreeperState(-1);
-        this.timeSinceIgnited = 0;
-        this.fuseTime = 30;
-
 
 
 
@@ -157,13 +138,8 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 
 
 //Values config
-        this.spawnMinions = BetterSlimesConfigMobs.spawnMinions;
-            if (!this.spawnMinions) { this.splitChance = 0; }
-        this.splitSlimeString = BetterSlimesConfigMobs.splitSlimeString;
-        SplitSlime = EntityList.getClass(new ResourceLocation(splitSlimeString));
-
         this.movementSpeedMultiplier = BetterSlimesConfigMobs.movementSpeedMultiplier;
-        this.movementSpeedAttribute = 0.02 * movementSpeedMultiplier;
+        this.movementSpeedAttribute = 0.02D * movementSpeedMultiplier;
         this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(this.movementSpeedAttribute);
 
         this.specialCooldown = BetterSlimesConfigMobs.specialCooldown;
@@ -171,8 +147,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
         this.leapSequenceMax = 3;
         this.leapSequenceCooldown = 20;
         this.leapWarning = BetterSlimesConfigMobs.leapWarning;
-        this.leapVelocityMultiplierXZ = BetterSlimesConfigMobs.leapVelocityMultiplierXZ;
-        this.leapVelocityMultiplierY = BetterSlimesConfigMobs.leapVelocityMultiplierY;
+        this.leapVelocityMultiplier = BetterSlimesConfigMobs.leapVelocityMultiplier;
         this.leapLandingRadius = BetterSlimesConfigMobs.leapLandingRadius;
         this.leapLandingDamage = BetterSlimesConfigMobs.leapLandingDamage;
 
@@ -180,12 +155,12 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 
 
 //Attack state
-        this.behaviorState = BehaviorState.DEFAULT;
+        this.behaviorState = "default";
 
         this.currentAttackProjectile = rand.nextInt(3);
         this.currentAttackMovement = rand.nextInt(2);
 
-        this.bossSpecialCountdown = specialCooldown;
+        this.specialCooldownCurrent = specialCooldown;
 
         this.wasOnGroundPreviousTick = false;
         this.isPerformingLeap = false;
@@ -200,19 +175,95 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
     }
 
 
+    public void writeEntityToNBT(NBTTagCompound compound) 
+    {
+        super.writeEntityToNBT(compound);
+
+
+        compound.setFloat("MovementSpeedMultiplier", movementSpeedMultiplier);
+        compound.setDouble("MovementSpeedAttribute", movementSpeedAttribute);
+
+        compound.setInteger("SpecialCooldown", specialCooldown);
+
+        compound.setInteger("LeapSequenceMax", leapSequenceMax);
+        compound.setInteger("LeapSequenceCooldown", leapSequenceCooldown);
+        compound.setInteger("LeapWarning", leapWarning);
+        compound.setFloat("LeapVelocityMultiplier", leapVelocityMultiplier);
+        compound.setInteger("LeapLandingRadius", leapLandingRadius);
+        compound.setFloat("LeapLandingDamage", leapLandingDamage);
+
+
+
+
+        compound.setString("BehaviorState", behaviorState);
+
+//      ArrayList<Integer> currentAttacksProjectile = new ArrayList<>();
+//      ArrayList<Integer> currentAttacksMovement = new ArrayList<>();
+        compound.setInteger("CurrentAttackProjectile", currentAttackProjectile);
+        compound.setInteger("CurrentAttackMovement", currentAttackMovement);
+
+        compound.setInteger("SpecialCooldownCurrent", specialCooldownCurrent);
+
+        compound.setBoolean("WasOnGroundPreviousTick", wasOnGroundPreviousTick);
+        compound.setBoolean("IsPerformingLeap", isPerformingLeap);
+        compound.setBoolean("ShouldExplodeOnLanding", shouldExplodeOnLanding);
+        compound.setInteger("LandingExplosionWait", landingExplosionWait);
+        compound.setInteger("LeapSequenceAt", leapSequenceAt);
+    }
+
+    public void readEntityFromNBT(NBTTagCompound compound) 
+    {
+        super.readEntityFromNBT(compound);
+        if (this.hasCustomName()) { this.bossInfo.setName(this.getDisplayName()); }
+
+
+
+        if (compound.hasKey("MovementSpeedMultiplier")) { movementSpeedMultiplier = compound.getFloat("MovementSpeedMultiplier"); }
+            this.movementSpeedAttribute = 0.02D * movementSpeedMultiplier;
+            this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(this.movementSpeedAttribute);
+        if (compound.hasKey("MovementSpeedAttribute")) { movementSpeedAttribute = compound.getDouble("MovementSpeedAttribute"); }
+
+        if (compound.hasKey("SpecialCooldown")) { specialCooldown = compound.getInteger("SpecialCooldown"); }
+
+        if (compound.hasKey("LeapSequenceMax")) { leapSequenceMax = compound.getInteger("LeapSequenceMax"); }
+        if (compound.hasKey("LeapSequenceCooldown")) { leapSequenceCooldown = compound.getInteger("LeapSequenceCooldown"); }
+        if (compound.hasKey("LeapWarning")) { leapWarning = compound.getInteger("LeapWarning"); }
+        if (compound.hasKey("LeapVelocityMultiplier")) { leapVelocityMultiplier = compound.getFloat("LeapVelocityMultiplier"); }
+        if (compound.hasKey("LeapLandingRadius")) { leapLandingRadius = compound.getInteger("LeapLandingRadius"); }
+        if (compound.hasKey("LeapLandingDamage")) { leapLandingDamage = compound.getFloat("LeapLandingDamage"); }
+
+
+
+
+        if (compound.hasKey("BehaviorState")) { behaviorState = compound.getString("BehaviorState"); }
+
+//      ArrayList<Integer> currentAttacksProjectile = new ArrayList<>();
+//      ArrayList<Integer> currentAttacksMovement = new ArrayList<>();
+        if (compound.hasKey("CurrentAttackProjectile")) { currentAttackProjectile = compound.getInteger("CurrentAttackProjectile"); }
+        if (compound.hasKey("CurrentAttackMovement")) { currentAttackMovement = compound.getInteger("CurrentAttackMovement"); }
+
+        if (compound.hasKey("SpecialCooldownCurrent")) { specialCooldownCurrent = compound.getInteger("SpecialCooldownCurrent"); }
+
+        if (compound.hasKey("WasOnGroundPreviousTick")) { wasOnGroundPreviousTick = compound.getBoolean("WasOnGroundPreviousTick"); }
+        if (compound.hasKey("IsPerformingLeap")) { isPerformingLeap = compound.getBoolean("IsPerformingLeap"); }
+        if (compound.hasKey("ShouldExplodeOnLanding")) { shouldExplodeOnLanding = compound.getBoolean("ShouldExplodeOnLanding"); }
+        if (compound.hasKey("LandingExplosionWait")) { landingExplosionWait = compound.getInteger("LandingExplosionWait"); }
+        if (compound.hasKey("LeapSequenceAt")) { leapSequenceAt = compound.getInteger("LeapSequenceAt"); }
+    }
+
+
     @Override
     protected void entityInit() 
     {
-        this.dataManager.register(SPAWN_TIME, Integer.valueOf(0));
         super.entityInit();
     }
 
     public void resetBehaviorState()
     {
 //Reset special cooldown
-        this.bossSpecialCountdown = 40;
+        this.specialCooldownCurrent = 40;
 //Reset performing special
-        this.behaviorState = BehaviorState.DEFAULT;
+        this.behaviorState = "default";
 //Reset leap state and leaps performed
         this.isPerformingLeap = false;
         this.leapSequenceAt = 1;
@@ -241,21 +292,6 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 //Set if was on ground previous tick
         this.wasOnGroundPreviousTick = this.onGround;
 
-
-//If this is alive
-        if (this.isEntityAlive()) 
-        {
-
-//When reaching leap warning
-            if (this.bossSpecialCountdown <= this.leapWarning) 
-            {
-//Set creeper state
-                this.setCreeperState(1);
-            }
-
-//Check if should ignite
-            this.creeperIgniteCheck();
-        }
 
         super.onUpdate();
     }
@@ -293,14 +329,14 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
                     
 
                     EntityEarthPiece earthPiece = new EntityEarthPiece(this.world,
-                    this.posX + randomDistance * Math.cos(radianAt), this.posY + 4.0D, this.posZ + randomDistance * Math.sin(radianAt),
-                    this, 
-                    "spin", "cube", 2,
-                    20, 
-                    20, 1.0D,
-                    10, 16.0D,
-                    40, 0.5D,
-                    40, 1.0D, 3.0D, 0.08D);
+                        this.posX + randomDistance * Math.cos(radianAt), this.posY + 4.0D, this.posZ + randomDistance * Math.sin(radianAt),
+                        this, 
+                        "spin", "cube", 2,
+                        20, 
+                        20, 1.0D,
+                        10, 16.0D,
+                        40, 0.5D,
+                        40, 1.0D, 3.0D, 0.08D);
 
                     earthPiece.setPieceSpin(100 + ((pieceAt + 1) * 25), 24.0D, radianAt, 0.1D * Math.PI);
 
@@ -321,21 +357,21 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
             }
 
 //Default state
-            if(this.behaviorState == BehaviorState.DEFAULT) 
+            if(this.behaviorState.equals("default")) 
             { 
 //Execute regular attacks
                 this.executeRegularAttacks();
 
 
 //When boss special countdown first reaches warning stage
-                if (this.bossSpecialCountdown == this.leapWarning) 
+                if (this.specialCooldownCurrent == this.leapWarning) 
                 {
-//Set creeper state
-                    this.playSound(SoundEvents.ENTITY_CREEPER_PRIMED, 2.0F, 0.8F);
-                    this.setCreeperState(1);
+                    this.world.playSound(null, 
+                    attackTarget.posX, attackTarget.posY, attackTarget.posZ,
+                    EternityModeSoundEvents.ENTITY_QUAZAR_NUKE_ALARM, SoundCategory.HOSTILE, 8.0F, 1.0F);
 
 //Set preparing leap
-                    this.behaviorState = BehaviorState.PREPARING_LEAP;
+                    this.behaviorState = "preparingleap";
                 }
             }
 
@@ -343,7 +379,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 
 
 //Preparing leap state
-            else if(this.behaviorState == BehaviorState.PREPARING_LEAP) 
+            else if(this.behaviorState.equals("preparingleap")) 
             { 
 //Get target distance and if too short clear path
 /*
@@ -360,15 +396,10 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 
 
 //When boss special countdown reaches zero
-                if (this.bossSpecialCountdown < 1)
+                if (this.specialCooldownCurrent < 1)
                 {
-//Some creeper stuff
-                    this.timeSinceIgnited = 0;
-                    this.fuseTime = 30;
-                    this.setCreeperState(-1); 
-
 //Set executing leap
-                    this.behaviorState = BehaviorState.LEAPING_SPECIAL;
+                    this.behaviorState = "leapingspecial";
                 }
             }
 
@@ -376,7 +407,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 
 
 //Leap executing state
-            else if(this.behaviorState == BehaviorState.LEAPING_SPECIAL) 
+            else if(this.behaviorState.equals("leapingspecial")) 
             {
 //If boss already should explode on landing
                 if(this.shouldExplodeOnLanding)
@@ -387,7 +418,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 
 //When boss special countdown 
 //is at zero and this isn't already leaping
-                if (this.bossSpecialCountdown == 0 && !this.isPerformingLeap)
+                if (this.specialCooldownCurrent == 0 && !this.isPerformingLeap)
                 {
 //Perform the leap
 //Provide boolean for whether this is last leap or not
@@ -401,11 +432,6 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
                     this.shouldExplodeOnLanding = true;
 //But wait 2 ticks so the boss doesn't explode immediately after leaping
                     --this.landingExplosionWait;
-
-//Some creeper stuff
-                    this.timeSinceIgnited = 0;
-                    this.fuseTime = 30;
-                    this.setCreeperState(-1); 
                }
             }
 
@@ -413,7 +439,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 //Universal logic if has target...
 
 //Decrement boss special countdown if not mid-special
-            if(this.bossSpecialCountdown > 0 && !this.isPerformingLeap) { this.bossSpecialCountdown--; }
+            if(this.specialCooldownCurrent > 0 && !this.isPerformingLeap) { this.specialCooldownCurrent--; }
 
 //Check if should explode on landing
             this.checkSpecialExplode();
@@ -438,12 +464,12 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
         for (int particleAt = 0; particleAt < quazarWidth * 16; particleAt++)
         {
             float randomAngle = this.rand.nextFloat() * (2F * (float) Math.PI);
-            float quarterToHalf = this.rand.nextFloat() * 0.25F + 0.25F;
+            float quarterToFull = 0.25F + this.rand.nextFloat() * 0.75F;
 
 //Particle offset in random angle
-//and multiplied by 0.25-0.5 Quazar's width
-            float particleOffsetX = MathHelper.sin(randomAngle) * (float) quazarWidth * quarterToHalf;
-            float particleOffsetZ = MathHelper.cos(randomAngle) * (float) quazarWidth * quarterToHalf;
+//and multiplied by 0.25-1.0 Quazar's width
+            float particleOffsetX = MathHelper.sin(randomAngle) * (float) quazarWidth * quarterToFull;
+            float particleOffsetZ = MathHelper.cos(randomAngle) * (float) quazarWidth * quarterToFull;
 
             World world = this.world;
 
@@ -459,37 +485,6 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
             {
                 world.spawnParticle(EnumParticleTypes.LAVA, particlePositionX, this.getEntityBoundingBox().minY, particlePositionZ, 0.0D, 0.0D, 0.0D);
             }
-        }
-    }
-
-
-
-
-    protected void creeperIgniteCheck()
-    {
-//If on first tick of ignition
-        int igniteState = this.getCreeperState();
-        if (igniteState > 0 && this.timeSinceIgnited == 0) 
-        {
-//Play creeper primed sound
-            this.playSound(SoundEvents.ENTITY_CREEPER_PRIMED, 1.0F, 0.7F);
-        }
-
-
-//Increment ignite time
-        this.timeSinceIgnited += igniteState;
-
-
-//Also ignite time can't go below zero
-        if (this.timeSinceIgnited < 0) 
-        {
-            this.timeSinceIgnited = 0;
-        }
-
-//Ignite time can't go over fuse time
-        if (this.timeSinceIgnited >= this.fuseTime) 
-        {
-            this.timeSinceIgnited = this.fuseTime;
         }
     }
 
@@ -610,18 +605,24 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
             if(!lastLeapInSequence)
             {
 
-            ITextComponent msg = new TextComponentTranslation(
-                    "chat.type.text",
-                    "Quazar",
-                    new TextComponentString("Furnace, open")
-            );
+                ITextComponent msg = new TextComponentTranslation(
+                        "chat.type.text",
+                        "Quazar",
+                        new TextComponentString("Furnace, open")
+                );
 
-            world.getMinecraftServer().getPlayerList().sendMessage(msg);
+
+                world.getMinecraftServer().getPlayerList().sendMessage(msg);
+
+
+                this.world.playSound(null, 
+                leapTarget.posX, leapTarget.posY, leapTarget.posZ,
+                EternityModeSoundEvents.ENTITY_QUAZAR_LEAP_WHOOSH, SoundCategory.HOSTILE, 5.0F, 1.0F);
 
 //Leap at target
-                this.motionX = distanceX / 6.5D;
-                this.motionY = 2.0D;
-                this.motionZ = distanceZ / 6.5D;
+                    this.motionX = distanceX / 6.5D;
+                    this.motionY = 2.0D;
+                    this.motionZ = distanceZ / 6.5D;
             }
 //If last leap do a harder leap
             else
@@ -684,8 +685,12 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
         }
 
 
+//Only last batch set fire to ground
+        boolean lastLeapInSequence = (this.leapSequenceAt >= this.leapSequenceMax);
+        int leapParticleType = lastLeapInSequence ? 1 : 0;
 
 
+/*
         List<EntityLivingBase> entitiesInBlast = this.world.getEntitiesWithinAABB
         (
             EntityLivingBase.class, 
@@ -719,19 +724,31 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
                 }
             }
         }
+*/
+
+
+
+        ExplosionUtil.performOptimizedExplosion(this.world, this, this.posX, this.posY + (this.height / 2), this.posZ,
+        this.leapLandingRadius, true, this.leapLandingDamage, true, this.leapVelocityMultiplier, false, 9999.0F, lastLeapInSequence, 
+        true, leapParticleType, false);
+
+        this.world.playSound(null, 
+        this.posX, this.posY, this.posZ,
+        EternityModeSoundEvents.ENTITY_QUAZAR_LANDING_EXPLOSION, SoundCategory.HOSTILE, 5.0F, 1.0F);
 
 
 
 
+//8 directional shockwaves
         if(!this.world.isRemote)
         {
             for(int shockwaveAt = 0; shockwaveAt < 8; shockwaveAt++)
             {
                 EntityExplosiveShockwave shockwave = new EntityExplosiveShockwave(this.world, this.posX, this.posY, this.posZ,
                 this, 
-                50, true, 3.0F, 2.0D * Math.cos(Math.PI * 0.25D * shockwaveAt), 0.0D, 2.0D * Math.sin(Math.PI * 0.25D * shockwaveAt), 1.021D,
+                50, true, 3.0F, 3.0D * Math.cos(Math.PI * 0.25D * shockwaveAt), 0.0D, 2.0D * Math.sin(Math.PI * 0.25D * shockwaveAt), 1.021D,
                 true, 3.0D, 15,
-                3, 4.0D, 1.0F,
+                3, 4.0D, 5.0F,
                 true, 2.0D, false, 0, 20);
 		        shockwave.setLocationAndAngles(this.posX, this.posY, this.posZ, this.rotationYaw, 0.0F);
 
@@ -741,10 +758,6 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 //Target for targeted shockwaves
             EntityLivingBase quazarAttackTarget = this.getAttackTarget();
 
-//Only last batch set fire to ground
-            boolean aimedShockwavesSetFire = (this.leapSequenceAt >= this.leapSequenceMax);
-            int aimedShockwavesParticleType = (this.leapSequenceAt >= this.leapSequenceMax) ? 1 : 0;
-
             if (quazarAttackTarget != null)
             {
                 double baseRadians = Math.atan2(quazarAttackTarget.posZ - this.posZ, quazarAttackTarget.posX - this.posX);
@@ -753,10 +766,10 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
                 {
                     EntityExplosiveShockwave shockwave = new EntityExplosiveShockwave(this.world,this.posX, this.posY, this.posZ,
                     this,  
-                    25, true, 3.0F, 4.0D * Math.cos(baseRadians + (Math.PI * 0.125D * angleAt)), 0.0D, 4.0D * Math.sin(baseRadians + (Math.PI * 0.125D * angleAt)), 1.044D,
+                    25, true, 3.0F, 4.5D * Math.cos(baseRadians + (Math.PI * 0.125D * angleAt)), 0.0D, 4.0D * Math.sin(baseRadians + (Math.PI * 0.125D * angleAt)), 1.044D,
                     true, 3.0D, 15, 
-                    2, 4.0D, 1.0F,
-                    true, 2.0D, aimedShockwavesSetFire, aimedShockwavesParticleType, 20);
+                    2, 4.0D, 5.0F,
+                    true, 2.0D, lastLeapInSequence, leapParticleType, 20);
 		            shockwave.setLocationAndAngles(this.posX, this.posY, this.posZ, this.rotationYaw, 0.0F);
 
 		            this.getEntityWorld().spawnEntity(shockwave);
@@ -792,7 +805,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
                     EntityFlameShotLinearSplits flameShotExplosive = new EntityFlameShotLinearSplits
                     (
                         this.world,
-                        this.posX, this.posY, this.posZ,
+                        this.posX, this.posY + (this.height / 2.0D), this.posZ,
                         this, 
                         15, 
                         Math.cos(flameStartingRadians + (0.125D * Math.PI * flameShotAt)) * (horizontalDistance + distanceAddition) / 8.0D,
@@ -841,7 +854,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
         if(this.leapSequenceAt < this.leapSequenceMax) 
         { 
 //Applying short cooldown
-            this.bossSpecialCountdown = this.leapSequenceCooldown;
+            this.specialCooldownCurrent = this.leapSequenceCooldown;
 //Incrementing leaps executed
             ++this.leapSequenceAt;
 //Wait a bit before explosion again
@@ -854,13 +867,13 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 //Restoring movement speed
             this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(this.movementSpeedAttribute);
 //Applying longer cooldown
-            this.bossSpecialCountdown = this.specialCooldown;
+            this.specialCooldownCurrent = this.specialCooldown;
 //Resetting leaps executed
             this.leapSequenceAt = 1;
 //Wait a bit before explosion again
             this.landingExplosionWait = 2;     
 //Resetting state
-            this.behaviorState = BehaviorState.DEFAULT;   
+            this.behaviorState = "default";   
         }
     }
 
@@ -907,34 +920,17 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 
 
 
-    @Override
-    protected EntityBetterSlime createInstance() 
-    {
-        if (EntityBetterSlime.class.isAssignableFrom(SplitSlime)) 
-        {
-            return (EntityBetterSlime) ForgeRegistries.ENTITIES.getValue(new ResourceLocation(splitSlimeString)).newInstance(this.world);
-        } else {
-            return new BlueSlime(this.world);
-        }
-    }
-
-
+//Don't split
     @Override
     public void setDead() 
     {
-        if (!spawnMinions) 
-        {
-            this.isDead = true;
-        } else {
-            super.setDead();
-        }
+        this.isDead = true;
     }
 
 
     @Override
     public boolean getCanSpawnHere() 
     {
-
         if (this.world.getWorldInfo().getTerrainType().handleSlimeSpawnReduction(rand, world)) 
         {
             return false;
@@ -988,28 +984,29 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
         this.bossInfo.setName(this.getDisplayName());
     }
 
-    // Needs to be true in order to disable vanilla slime particles.
-    // Custom particles are implemented in the OnUpdate method
+
+// Needs to be true in order to disable vanilla slime particles.
+// Custom particles are implemented in the OnUpdate method
     @Override
     protected boolean spawnCustomParticles() { return true; }
 
-    // Disable cobweb slowdown
+// Disable cobweb slowdown
     @Override
     public void setInWeb() { }
 
-    // Disable water pushing
+// Disable water pushing
     @Override
     public boolean isPushedByWater() { return false; }
 
-    // Makes entity unaffected by water
+// Makes entity unaffected by water
     @Override
     public boolean isInWater() { return false; }
 
-    // Makes entity unaffected by lava
+// Makes entity unaffected by lava
     @Override
     public boolean isInLava() { return false; }
 
-    // Disable fall damage so the boss doesn't kill itself when it leaps
+// Disable fall damage so the boss doesn't kill itself when it leaps
     @Override
     public boolean isEntityInvulnerable(DamageSource source) 
     {
@@ -1041,111 +1038,11 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime {
 
 
 
-    public int getSpawnTime() 
-    {
-        return ((Integer) this.dataManager.get(SPAWN_TIME)).intValue();
-    }
-
-    public void setSpawnTime(int time) 
-    {
-        this.dataManager.set(SPAWN_TIME, Integer.valueOf(time));
-    }
-
-
-    public int getCreeperState() 
-    {
-        return ((Integer) this.dataManager.get(STATE)).intValue();
-    }
-
-    public void setCreeperState(int state) 
-    {
-        this.dataManager.set(STATE, Integer.valueOf(state));
-    }
-
-
-
-
     @Override
     protected void updateAITasks() 
     {
-        if (this.getSpawnTime() > 0) 
-        {
-            int j1 = this.getSpawnTime() - 1;
-
-            if (spawnMinions && j1 <= 0) 
-            {
-                this.playSound(this.getSquishSound(), (float) (this.getSoundVolume() * 1.2), ((this.rand.nextFloat() - this.rand.nextFloat()) * 0.2F + 1.0F) / 0.8F);
-                for (int x = 0; x < 10; x++)
-                    world.spawnParticle(EnumParticleTypes.SLIME, this.posX, this.getEntityBoundingBox().minY, this.posY, 0.0D, 0.0D, 0.0D);
-//				this.world.spawnParticle(EnumParticleTypes.SLIME, this.posX, this.posY, this.posZ, 0, 0, 0);
-                KnightSlime b;
-                for (int x = 0; x < 4; x++) 
-                {
-                    b = new KnightSlime(this.world);
-                    b.setSlimeSize(2, true);
-                    b.setLocationAndAngles(this.posX + rand.nextInt(10) - 5, this.posY + rand.nextInt(1) + 1,
-                            this.posZ + rand.nextInt(10) - 5, this.rotationYaw, this.rotationPitch);
-                    this.world.spawnEntity(b);
-                }
-            }
-
-            this.setSpawnTime(j1);
-        } 
-        else 
-        {
-            this.setSpawnTime(240);
-        }
         super.updateAITasks();
         this.bossInfo.setPercent(this.getHealth() / this.getMaxHealth());
-    }
-
-
-
-
-    public void writeEntityToNBT(NBTTagCompound compound) 
-    {
-        super.writeEntityToNBT(compound);
-
-        compound.setInteger("Spawn", this.getSpawnTime());
-
-        compound.setInteger("SpecialCooldown", specialCooldown);
-        compound.setInteger("LeapWarning", leapWarning);
-        compound.setFloat("LeapVelocityMultiplierY", leapVelocityMultiplierY);
-        compound.setFloat("LeapVelocityMultiplierXZ", leapVelocityMultiplierXZ);
-        compound.setFloat("LeapLandingDamage", leapLandingDamage);
-        compound.setInteger("LeapLandingRadius", leapLandingRadius);
-
-        compound.setFloat("MovementSpeedMultiplier", movementSpeedMultiplier);
-
-        compound.setBoolean("SpawnMinions", spawnMinions);
-    }
-
-    public void readEntityFromNBT(NBTTagCompound compound) 
-    {
-        super.readEntityFromNBT(compound);
-        if (this.hasCustomName()) { this.bossInfo.setName(this.getDisplayName()); }
-
-        if (compound.hasKey("Spawn")) { this.setSpawnTime(compound.getInteger("Spawn")); }
-
-        if (compound.hasKey("SpecialCooldown")) { specialCooldown = compound.getInteger("SpecialCooldown"); }
-
-        if (compound.hasKey("LeapWarning")) { leapWarning = compound.getInteger("LeapWarning"); }
-        if (compound.hasKey("LeapVelocityMultiplierY")) { leapVelocityMultiplierY = compound.getFloat("LeapVelocityMultiplierY"); }
-        if (compound.hasKey("LeapVelocityMultiplierXZ")) { leapVelocityMultiplierXZ = compound.getFloat("LeapVelocityMultiplierXZ"); }
-        if (compound.hasKey("LeapLandingDamage")) { leapLandingDamage = compound.getFloat("LeapLandingDamage"); }
-        if (compound.hasKey("LeapLandingRadius")) { leapLandingRadius = compound.getInteger("LeapLandingRadius"); }
-
-
-        if (compound.hasKey("MovementSpeedMultiplier")) { movementSpeedMultiplier = compound.getFloat("MovementSpeedMultiplier"); }
-        this.movementSpeedAttribute = 0.02 * movementSpeedMultiplier;
-        this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(this.movementSpeedAttribute);
-
-
-        if (compound.hasKey("SpawnMinions")) { spawnMinions = compound.getBoolean("SpawnMinions"); }
-        if (!this.spawnMinions) 
-        {
-            this.splitChance = 0;
-        }
     }
 
 }

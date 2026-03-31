@@ -34,8 +34,7 @@ public class BetterSlimesConfigMobs {
 
     public static int specialCooldown = 160;
     public static int leapWarning = 40;
-    public static float leapVelocityMultiplierY = 1.0F;
-    public static float leapVelocityMultiplierXZ = 1.0F;
+    public static float leapVelocityMultiplier = 1.0F;
     public static float leapLandingDamage = 18.0F;
     public static int leapLandingRadius = 10;
     public static float movementSpeedMultiplier = 1.0F;
@@ -95,19 +94,11 @@ public class BetterSlimesConfigMobs {
 
         specialCooldown = config.getInt("Quazar leap cooldown", category3, 160, 0, MAX, "Cooldown between special attacks in ticks");
         leapWarning = config.getInt("Quazar leap warning", category3, 40, 0, MAX, "Length of the animation the boss does before leap attacks in ticks. \nMust be shorter than specialCooldown");
-        leapVelocityMultiplierY = config.getFloat("Quazar leap launch vertical", category3, 1.0F, 0, MAX, "Vertical speed all entities affected by the leap attack get");
-        leapVelocityMultiplierXZ = config.getFloat("Quazar leap launch horizontal", category3, 1.0F, 0, MAX, "Horizontal speed all entities affected by the leap attack get");
+        leapVelocityMultiplier = config.getFloat("Quazar leap launch", category3, 1.0F, 0, MAX, "Launch speed all entities affected by the leap attack get");
         leapLandingDamage = config.getFloat("Quazar leap landing damage", category3, 18.0F, 0, MAX, "Damage the leap attack deals on landing");
         leapLandingRadius = config.getInt("Quazar leap damage radius", category3, 10, 0, MAX, "Damage radius of the leap attack");
         movementSpeedMultiplier = config.getFloat("Quazar movement speed", category3, 1.0F, 0, MAX, "Amount by which the movement speed of Quazar is multiplied");
 
-        spawnMinions = config.getBoolean("Quazar spawns minions", category3, false, "Ability of the boss to summon little slaves to aid him in battle");
-        if (!spawnMinions) 
-        {
-            splitChance = 0;
-        }
-
-        splitSlimeString = config.getString("Quazar split minion type", category3, Reference.MODID + ":blue_slime", "The type of slime the boss will split into on death\n Must be a BetterSlimes slime");
         damageMultiplier = config.getFloat("Quazar damage multiplier", category3, 1.0F, 0, MAX, "Attack damage multiplier of Quazar");
     
     }

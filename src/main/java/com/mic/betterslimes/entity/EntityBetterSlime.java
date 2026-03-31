@@ -65,7 +65,8 @@ public class EntityBetterSlime extends EntitySlime {
 	}
 
 	@Override
-	protected void updateAITasks() {
+	protected void updateAITasks() 
+    {
 		super.updateAITasks();
 
 		if (splitChance > 0) {
