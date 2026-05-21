@@ -57,20 +57,23 @@ public class RegistryHandler {
 
     // Change better slimes that spawn in biomes to their respective biome type
 	@SubscribeEvent
-	public static void onEntityJoinWorld(EntityJoinWorldEvent event) {
+	public static void onEntityJoinWorld(EntityJoinWorldEvent event) 
+    {
 
-		if (event.getEntity() instanceof Quazar) {
+		if (event.getEntity() instanceof Quazar) 
+        {
 			Quazar quazar = (Quazar) event.getEntity();
 
-			quazar.setSlimeSize(16, true);
+			quazar.setSlimeSize(32, true);
             quazar.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(10.0D);
 
 			quazar.setAttackModifier(1);
 			quazar.setHealthModifier(1);
-
-        } else if (event.getEntity() instanceof EntityBetterSlime
-                    && !(event.getEntity() instanceof ISpecialSlime)
-                    && BetterSlimesConfigMobs.convertSlimes) {
+        } 
+        else if (event.getEntity() instanceof EntityBetterSlime
+            && !(event.getEntity() instanceof ISpecialSlime)
+            && BetterSlimesConfigMobs.convertSlimes) 
+        {
             EntityBetterSlime s = (EntityBetterSlime) event.getEntity();
             
             if (BiomeDictionary.getBiomes(BiomeDictionary.Type.SNOWY)
@@ -89,12 +92,14 @@ public class RegistryHandler {
                     s = new SandSlime(event.getWorld());
             
             // Replace the spawned entity with the instantiated version
-            if (!s.equals(event.getEntity())) {
+            if (!s.equals(event.getEntity())) 
+            {
                 s.setLocationAndAngles(event.getEntity().posX, event.getEntity().posY, event.getEntity().posZ,
                         event.getEntity().rotationYaw, event.getEntity().rotationPitch);
                 s.onInitialSpawn(event.getWorld().getDifficultyForLocation(event.getEntity().getPosition()),
                         (IEntityLivingData) null);
-                if (!event.getWorld().isRemote) {
+                if (!event.getWorld().isRemote) 
+                {
                     event.getWorld().spawnEntity(s);
                 }
                 event.getEntity().setDropItemsWhenDead(false);

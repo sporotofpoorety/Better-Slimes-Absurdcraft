@@ -76,7 +76,7 @@ public class ModEntities {
                 BetterSlimesConfigMobs.sandSlime, 0, 6, EnumCreatureType.MONSTER, excludeHellAndSky(BiomeDictionary.getBiomes(BiomeDictionary.Type.DRY)));
         registerEntity("spectral_slime", SpectralSlime.class, view, 0x9A359D, 0x000000,
                 BetterSlimesConfigMobs.spectralSlime, 0, 1, EnumCreatureType.MONSTER, Biomes.SKY);
-        registerEntity("quazar", Quazar.class, view, 0x1219CF, 0xFFFF00,
+        registerEntity("quazar", Quazar.class, 300, 0x1219CF, 0xFFFF00,
                 BetterSlimesConfigMobs.kingChance, 0, 1, EnumCreatureType.MONSTER, excludeHellAndSky(BiomeDictionary.getBiomes(BiomeDictionary.Type.SPOOKY)));
         registerEntity("iron_slime", IronSlime.class, view, 0x6D7070, 0xADAF95,
                 BetterSlimesConfigMobs.ironSlime, 0, 2, EnumCreatureType.MONSTER, genericBiomes);

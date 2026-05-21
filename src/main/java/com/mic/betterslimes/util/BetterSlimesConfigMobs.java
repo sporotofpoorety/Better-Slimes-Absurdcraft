@@ -33,13 +33,11 @@ public class BetterSlimesConfigMobs {
 
 
     public static int specialCooldown = 160;
-    public static int leapWarning = 40;
+    public static int leapWarningSpecial = 50;
     public static float leapVelocityMultiplier = 1.0F;
     public static float leapLandingDamage = 18.0F;
-    public static int leapLandingRadius = 10;
+    public static int leapLandingRadius = 24;
     public static float movementSpeedMultiplier = 1.0F;
-    public static boolean spawnMinions = false;
-    public static String splitSlimeString = Reference.MODID + ":blue_slime";
     public static float damageMultiplier = 1.0F;
 
 
@@ -93,10 +91,10 @@ public class BetterSlimesConfigMobs {
 
 
         specialCooldown = config.getInt("Quazar leap cooldown", category3, 160, 0, MAX, "Cooldown between special attacks in ticks");
-        leapWarning = config.getInt("Quazar leap warning", category3, 40, 0, MAX, "Length of the animation the boss does before leap attacks in ticks. \nMust be shorter than specialCooldown");
+        leapWarningSpecial = config.getInt("Quazar leap warning", category3, 50, 0, MAX, "Length of the animation the boss does before leap attacks in ticks. \nMust be shorter than specialCooldown");
         leapVelocityMultiplier = config.getFloat("Quazar leap launch", category3, 1.0F, 0, MAX, "Launch speed all entities affected by the leap attack get");
         leapLandingDamage = config.getFloat("Quazar leap landing damage", category3, 18.0F, 0, MAX, "Damage the leap attack deals on landing");
-        leapLandingRadius = config.getInt("Quazar leap damage radius", category3, 10, 0, MAX, "Damage radius of the leap attack");
+        leapLandingRadius = config.getInt("Quazar leap damage radius", category3, 24, 0, MAX, "Damage radius of the leap attack");
         movementSpeedMultiplier = config.getFloat("Quazar movement speed", category3, 1.0F, 0, MAX, "Amount by which the movement speed of Quazar is multiplied");
 
         damageMultiplier = config.getFloat("Quazar damage multiplier", category3, 1.0F, 0, MAX, "Attack damage multiplier of Quazar");
