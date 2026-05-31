@@ -32,15 +32,21 @@ public class BetterSlimesConfigMobs {
 
 
 
-    public static int specialCooldown = 160;
-    public static int leapWarningSpecial = 50;
-    public static float leapVelocityMultiplier = 1.0F;
-    public static float leapLandingDamage = 18.0F;
-    public static int leapLandingRadius = 24;
     public static float movementSpeedMultiplier = 1.0F;
-    public static float damageMultiplier = 1.0F;
 
+    public static int leapWarning = 20;
+    public static int leapCooldown = 120;
+    public static int leapLandingRadius = 10;
+    public static float leapLandingDamage = 18.0F;
+    public static float leapLaunchMultiplier = 1.0F;
 
+    public static int specialWarning = 50;
+    public static int specialCooldown = 900;
+    public static int specialSequenceCooldown = 60;
+    public static int specialSequenceMax = 3;
+    public static int meteorLandingRadius = 16;
+    public static float meteorLandingDamage = 24.0F;
+    public static float meteorLaunchMultiplier = 1.0F;
 
 
 	public static final int MAX = Short.MAX_VALUE;
@@ -90,14 +96,20 @@ public class BetterSlimesConfigMobs {
 		config.addCustomCategoryComment(category3, "Quazar specific configs.");
 
 
-        specialCooldown = config.getInt("Quazar leap cooldown", category3, 160, 0, MAX, "Cooldown between special attacks in ticks");
-        leapWarningSpecial = config.getInt("Quazar leap warning", category3, 50, 0, MAX, "Length of the animation the boss does before leap attacks in ticks. \nMust be shorter than specialCooldown");
-        leapVelocityMultiplier = config.getFloat("Quazar leap launch", category3, 1.0F, 0, MAX, "Launch speed all entities affected by the leap attack get");
-        leapLandingDamage = config.getFloat("Quazar leap landing damage", category3, 18.0F, 0, MAX, "Damage the leap attack deals on landing");
-        leapLandingRadius = config.getInt("Quazar leap damage radius", category3, 24, 0, MAX, "Damage radius of the leap attack");
         movementSpeedMultiplier = config.getFloat("Quazar movement speed", category3, 1.0F, 0, MAX, "Amount by which the movement speed of Quazar is multiplied");
 
-        damageMultiplier = config.getFloat("Quazar damage multiplier", category3, 1.0F, 0, MAX, "Attack damage multiplier of Quazar");
-    
+        leapWarning = config.getInt("Quazar leap warning", category3, 20, 0, MAX, "Length of the animation the boss does before leap attacks in ticks. \nMust be shorter than leapCooldown");
+        leapCooldown = config.getInt("Quazar leap cooldown", category3, 120, 0, MAX, "Length of the cooldown between Quazar's leaps");
+        leapLandingRadius = config.getInt("Quazar leap damage radius", category3, 12, 0, MAX, "Damage radius of the leap attack");
+        leapLandingDamage = config.getFloat("Quazar leap landing damage", category3, 18.0F, 0, MAX, "Damage the leap attack deals on landing");
+        leapLaunchMultiplier = config.getFloat("Quazar leap launch", category3, 1.0F, 0, MAX, "Launch speed all entities affected by the leap attack get");
+
+        specialWarning = config.getInt("Quazar special warning", category3, 50, 0, MAX, "Length of the animation the boss does before special attacks in ticks. \nMust be shorter than specialCooldown");
+        specialCooldown = config.getInt("Quazar special cooldown", category3, 900, 0, MAX, "Cooldown after special attack sequences in ticks");
+        specialSequenceCooldown = config.getInt("Quazar special inbetween cooldown", category3, 60, 0, MAX, "Cooldown inbetween special attacks in ticks");
+        specialSequenceMax = config.getInt("Quazar special sequence count", category3, 3, 0, MAX, "Special attacks done in sequence");
+        meteorLandingRadius = config.getInt("Quazar special meteor damage radius", category3, 16, 0, MAX, "Damage radius of the special meteor attack");
+        meteorLandingDamage = config.getFloat("Quazar special meteor damage", category3, 24.0F, 0, MAX, "Damage the special meteor attack deals on landing");
+        meteorLaunchMultiplier = config.getFloat("Quazar special meteor launch", category3, 1.0F, 0, MAX, "Launch speed all entities affected by the special meteor attack get");
     }
 }

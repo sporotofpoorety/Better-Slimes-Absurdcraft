@@ -1,6 +1,4 @@
 /*
-//Deobfuscated with https://github.com/SimplyProgrammer/Minecraft-Deobfuscator3000 using mappings "Z:\home\inyourwalls\Downloads\Mappings16\fields.csv"!
-
 package sthullen.bosscrafttwo;
 
 import java.util.Random;

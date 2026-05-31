@@ -64,7 +64,7 @@ public class RegistryHandler {
         {
 			Quazar quazar = (Quazar) event.getEntity();
 
-			quazar.setSlimeSize(32, true);
+			quazar.setSlimeSize(64, true);
             quazar.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(10.0D);
 
 			quazar.setAttackModifier(1);
