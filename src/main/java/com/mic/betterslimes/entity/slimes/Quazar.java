@@ -16,10 +16,13 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityList;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
+import net.minecraft.entity.ai.EntityAIHurtByTarget;
+import net.minecraft.entity.ai.EntityMoveHelper;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.init.SoundEvents;
 import net.minecraft.item.Item;
+import net.minecraft.entity.monster.EntitySlime;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.network.datasync.DataParameter;
 import net.minecraft.network.datasync.DataSerializers;
@@ -48,9 +51,9 @@ import org.sporotofpoorety.eternitymode.entity.EntityExplosiveShockwave;
 import org.sporotofpoorety.eternitymode.entity.EntityMeteorBlock;
 import org.sporotofpoorety.eternitymode.entity.EntityMeteorBlockHoming;
 import org.sporotofpoorety.eternitymode.entity.EntityThrownBlock;
+import org.sporotofpoorety.eternitymode.entity.ai.EntityAIRelentlessTargetPlayers;
 import org.sporotofpoorety.eternitymode.entity.ai.EntityAIStun;
 import org.sporotofpoorety.eternitymode.entity.projectile.EntityFlameShotBouncing;
-import org.sporotofpoorety.eternitymode.entity.projectile.EntityFlameShotHoming;
 import org.sporotofpoorety.eternitymode.entity.projectile.EntityFlameShotLinearSplits;
 import org.sporotofpoorety.eternitymode.interfacemixins.IMixinEntityLiving;
 import org.sporotofpoorety.eternitymode.util.AbsurdcraftMathUtils;
@@ -83,8 +86,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
 
 
 //Values config
-    public float movementSpeedMultiplier;
-    private double movementSpeedAttribute;
+    public int quazarSize;
 
     public int leapWarning;
     public int leapCooldown;
@@ -131,13 +133,14 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
     public Quazar(World worldIn) 
     {
         super(worldIn);
+        this.moveHelper = new EntityMoveHelper(this); 
 //      this.ignoreFrustumCheck = true;
 
         this.setAttackModifier(1);
         this.setHealthModifier(1);
-        this.setSlimeSize(64, true);
+        this.setSlimeSize(this.quazarSize * 2, true);
         this.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(10.0D);
-
+        this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(0.07D);
         this.isImmuneToFire = true;
 
 
@@ -150,9 +153,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
 
 
 //Values config
-        this.movementSpeedMultiplier = BetterSlimesConfigMobs.movementSpeedMultiplier;
-        this.movementSpeedAttribute = 0.07D * movementSpeedMultiplier;
-        this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(this.movementSpeedAttribute);
+        this.quazarSize = BetterSlimesConfigMobs.quazarSize;
 
         this.leapCooldown = BetterSlimesConfigMobs.leapCooldown;
         this.leapWarning = BetterSlimesConfigMobs.leapWarning;
@@ -187,11 +188,12 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
         this.shouldExplodeOnLanding = false;
         this.landingExplosionWait = 5;
         this.specialSequenceAt = 1;
+    }
 
-
-
-
-        this.tasks.addTask(0, new EntityAIStun(this));        
+    @Override
+    protected void entityInit() 
+    {
+        super.entityInit();
     }
 
 
@@ -200,8 +202,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
         super.writeEntityToNBT(compound);
 
 
-        compound.setFloat("MovementSpeedMultiplier", movementSpeedMultiplier);
-        compound.setDouble("MovementSpeedAttribute", movementSpeedAttribute);
+        compound.setInteger("QuazarSize", quazarSize);
 
         compound.setInteger("LeapWarning", leapWarning);
         compound.setInteger("LeapCooldown", leapCooldown);
@@ -247,10 +248,8 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
         if (this.hasCustomName()) { this.bossInfo.setName(this.getDisplayName()); }
 
 
-        if (compound.hasKey("MovementSpeedMultiplier")) { movementSpeedMultiplier = compound.getFloat("MovementSpeedMultiplier"); }
-            this.movementSpeedAttribute = 0.07D * movementSpeedMultiplier;
-            this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(this.movementSpeedAttribute);
-        if (compound.hasKey("MovementSpeedAttribute")) { movementSpeedAttribute = compound.getDouble("MovementSpeedAttribute"); }
+        if (compound.hasKey("QuazarSize")) { quazarSize = compound.getInteger("QuazarSize"); }
+        this.setSlimeSize(this.quazarSize * 2, true);
 
         if (compound.hasKey("LeapWarning")) { leapWarning = compound.getInteger("LeapWarning"); }
         if (compound.hasKey("LeapCooldown")) { leapCooldown = compound.getInteger("LeapCooldown"); }
@@ -292,10 +291,21 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
 
 
     @Override
-    protected void entityInit() 
+    protected void initEntityAI()
     {
-        super.entityInit();
+/*
+        this.tasks.addTask(1, new EntitySlime.AISlimeFloat(this));
+        this.tasks.addTask(2, new EntitySlime.AISlimeAttack(this));
+        this.tasks.addTask(3, new EntitySlime.AISlimeFaceRandom(this));
+        this.tasks.addTask(5, new EntitySlime.AISlimeHop(this));
+        this.targetTasks.addTask(1, new EntityAIFindEntityNearestPlayer(this));
+        this.targetTasks.addTask(3, new EntityAIFindEntityNearest(this, EntityIronGolem.class));
+*/
+
+        this.targetTasks.addTask(1, new EntityAIRelentlessTargetPlayers(this, 300.0D));
+//      this.tasks.addTask(0, new EntityAIStun(this));
     }
+    
 
     public void resetBehaviorState()
     {
@@ -313,8 +323,6 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
 //Reset landing explosions
         this.shouldExplodeOnLanding = false;
         this.landingExplosionWait = 5;
-//Reset movement speed attribute
-        this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(this.movementSpeedAttribute);
     }
 
 
@@ -357,7 +365,6 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
         }
 
         System.out.println("=== QUAZAR STATE DEBUG ===\n" +
-            "Stats: SpeedMult=" + movementSpeedMultiplier + ", SpeedAttr=" + movementSpeedAttribute + "\n" +
             "Timers: LeapCD=" + leapCooldownCurrent + "/" + leapCooldown + ", SpecialCD=" + specialCooldownCurrent + "/" + specialCooldown + "\n" +
             "LeapSeq: At=" + specialSequenceAt + "/" + specialSequenceMax + ", Warn=" + leapWarning + "/" + specialWarning + "\n" +
             "Attacks: Proj=" + currentAttackProjectile + ", Move=" + currentAttackMovement + "\n" +
@@ -367,10 +374,22 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
 
 
 
+
         EntityLivingBase attackTarget = this.getAttackTarget();
 //If this has target
         if (attackTarget != null) 
         {
+            System.out.println("=== QUAZAR HAS TARGET ===");
+//		    this.getLookHelper().setLookPositionWithEntity(attackTarget, 10.0F, 10.0F);
+            this.faceEntity(attackTarget, 10.0F, 10.0F);
+            this.rotationYawHead = this.rotationYaw;
+            this.renderYawOffset = this.rotationYaw;
+//          this.setPositionAndUpdate(this.posX, this.posY, this.posZ);
+//          ((EntitySlime.SlimeMoveHelper)this.getMoveHelper()).setDirection(this.rotationYaw, true);
+//          this.rotationYawHead = this.rotationYaw;
+//          this.renderYawOffset = this.rotationYaw;
+
+
 /*
 //Every 30 seconds
             if((this.ticksExisted % 200) == 0)
@@ -450,12 +469,17 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
 
 
 //Prepare portals
-                if (!this.world.isRemote && this.specialCooldownCurrent == 20)
+                if (!this.world.isRemote && this.specialCooldownCurrent == 25)
                 {
+/*
                     EntityOrbVoidCustom portalOrb 
-                        = new EntityOrbVoidCustom(this.world, null, this, 3, 3, 20.0F, 20.0F, 7, 14); 
+                        = new EntityOrbVoidCustom(this.world, null, this, 3, 3, (float) (1.5D * this.width), (float) (1.5D * this.width), 10, 25);
+                        portalOrb.dontVisualExplosion = true;
+                        portalOrb.dontSoundActive = true;
+                        portalOrb.dontSoundWarning = true;  
                     portalOrb.setLocationAndAngles(this.posX, this.posY + (this.height / 2.0D), this.posZ, this.rotationYaw, 0.0F);
                     this.getEntityWorld().spawnEntity(portalOrb);
+*/
 
 
                     double distanceX = this.getAttackTarget().posX - this.posX;
@@ -473,10 +497,15 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
                     }
 
 
+/*
                     EntityOrbVoidCustom arrivalOrb 
-                        = new EntityOrbVoidCustom(this.world, null, this, 3, 3, 20.0F, 20.0F, 7, 14); 
+                        = new EntityOrbVoidCustom(this.world, null, this, 3, 3, (float) (1.5D * this.width), (float) (1.5D * this.width), 10, 25);
+                        arrivalOrb.dontVisualExplosion = true;
+                        arrivalOrb.dontSoundActive = true;
+                        arrivalOrb.dontSoundWarning = true; 
                     arrivalOrb.setLocationAndAngles(teleportX, teleportY, teleportZ, this.rotationYaw, 0.0F);
                     this.getEntityWorld().spawnEntity(arrivalOrb);  
+*/
                 }
 
 
@@ -503,12 +532,17 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
 
 
 //Set up teleport coords and portals
-                if(!this.world.isRemote && this.specialCooldownCurrent == 20 && !this.isPerformingSpecial)
+                if(!this.world.isRemote && this.specialCooldownCurrent == 25 && !this.isPerformingSpecial)
                 {
+/*
                     EntityOrbVoidCustom portalOrb 
-                        = new EntityOrbVoidCustom(this.world, null, this, 3, 3, 20.0F, 20.0F, 7, 14); 
+                        = new EntityOrbVoidCustom(this.world, null, this, 3, 3, (float) (1.5D * this.width), (float) (1.5D * this.width), 10, 25); 
+                        portalOrb.dontVisualExplosion = true;
+                        portalOrb.dontSoundActive = true;
+                        portalOrb.dontSoundWarning = true;  
                     portalOrb.setLocationAndAngles(this.posX, this.posY + (this.height / 2.0D), this.posZ, this.rotationYaw, 0.0F);
                     this.getEntityWorld().spawnEntity(portalOrb);
+*/
 
 
                     double distanceX = this.getAttackTarget().posX - this.posX;
@@ -526,10 +560,15 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
                     }
 
 
+/*
                     EntityOrbVoidCustom arrivalOrb 
-                        = new EntityOrbVoidCustom(this.world, null, this, 3, 3, 20.0F, 20.0F, 7, 14); 
+                        = new EntityOrbVoidCustom(this.world, null, this, 3, 3, (float) (1.5D * this.width), (float) (1.5D * this.width), 10, 25); 
+                        arrivalOrb.dontVisualExplosion = true;
+                        arrivalOrb.dontSoundActive = true;
+                        arrivalOrb.dontSoundWarning = true; 
                     arrivalOrb.setLocationAndAngles(teleportX, teleportY, teleportZ, this.rotationYaw, 0.0F);
-                    this.getEntityWorld().spawnEntity(arrivalOrb);                   
+                    this.getEntityWorld().spawnEntity(arrivalOrb);     
+*/              
                 }
 
 
@@ -763,31 +802,11 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
         int extraDuration = rand.nextInt(30);
 
 
-/*
-        EntityFlameShotHoming flameShotHoming = new EntityFlameShotHoming
-        (
-            this.world,
-            this.posX, this.posY + (this.height / 2.0D), this.posZ,
-            this,
-            200,
-            (targetHorizontalDistance + 32.0D) * Math.cos(currentRadians) / (30 + extraDuration), 
-            0.25D, 
-            (targetHorizontalDistance + 32.0D) * Math.sin(currentRadians) / (30 + extraDuration), 
-            1.0D, 0.0D, 
-            1.2D, true, true, 1.0F,
-            5, 2, 0.06D,
-            100, Math.PI, 0,
-            1.0F, 1.0D, 1.01D, 
-            30 + extraDuration, true, 100, 1.0D, 1, 
-            20, true, 4.0F, false, true,
-            true, false, 0.5F, false, false
-        );
-*/
         EntityMeteorBlockHoming meteorHoming = new EntityMeteorBlockHoming
         (
-            this.world, this.posX, this.posY + (this.height / 2.0D), this.posZ,
+            this.world, this.posX, this.posY + (this.height / 2.4D), this.posZ,
             this, true, 18.0F,
-            200, 
+            160, 
             (targetHorizontalDistance + 32.0D) * Math.cos(currentRadians) / (30 + extraDuration), 
             0.25D, 
             (targetHorizontalDistance + 32.0D) * Math.sin(currentRadians) / (30 + extraDuration), 
@@ -796,7 +815,8 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
             200, Math.PI, 1,
             9.0F, 1.0D, 1.01D, 
             true, false, 0.5F, false, false,
-            30 + extraDuration, true, 100, 1.0D, 1
+            30 + extraDuration, true, 100, 1.0D, 1,
+            true, false, 90.0D, 20.0D
         );
 
         this.world.spawnEntity(meteorHoming);
@@ -848,8 +868,8 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
         shinraTensei.setOrbFountain
             (5.0D, 5.0D, 8.0D, 1.0D, 1.0F,
             250, 150,
-            1.0D);
-        shinraTensei.setLocationAndAngles(this.posX, this.posY + 16.0D, this.posZ, this.rotationYaw, 0.0F);
+            1.0D, true, false, 90.0D, 20.0D);
+        shinraTensei.setLocationAndAngles(this.posX, this.posY + (this.height / 2.0D), this.posZ, this.rotationYaw, 0.0F);
         this.getEntityWorld().spawnEntity(shinraTensei);
     }
 
@@ -923,7 +943,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
 */
         ExplosionUtil.performOptimizedExplosion(this.world, this, this.teleportX, this.teleportY + (this.height / 2.0D), this.teleportZ,
             this.meteorLandingRadius + (this.width / 2.0D), true, this.meteorLandingDamage, true, 8.0D * (double) this.meteorLaunchMultiplier, true, 9999.0F, true, 
-            true, 2, false);
+            true, 1, false);
 /*
         ExplosionUtil.performOptimizedExplosion(this.world, this, this.teleportX, this.teleportY - (this.height / 2.0D), this.teleportZ,
             this.meteorLandingRadius, true, this.meteorLandingDamage, true, 8.0D * (double) this.meteorLaunchMultiplier, true, 9999.0F, true, 
@@ -949,7 +969,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
         {
             ExplosionUtil.performOptimizedExplosion(this.world, this, this.posX, this.posY + (this.height / 2.0D), this.posZ,
                 this.meteorLandingRadius + (this.width / 2.0D), true, this.meteorLandingDamage, true, 8.0D * (double) this.meteorLaunchMultiplier, true, 9999.0F, true, 
-                true, 2, false);
+                true, 1, false);
 /*
             ExplosionUtil.performOptimizedExplosion(this.world, this, this.posX, this.posY - (this.height / 2.0D), this.posZ,
                 this.meteorLandingRadius + (this.width / 2.0D), true, this.meteorLandingDamage, true, 8.0D * (double) this.meteorLaunchMultiplier, true, 9999.0F, true, 
@@ -1008,7 +1028,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
                         Math.atan2(attackTarget.posZ - this.posZ, attackTarget.posX - this.posX);
 
 
-                    for(int flameShotAt = -4; flameShotAt < 4; flameShotAt++)
+                    for(int meteorShotAt = -4; meteorShotAt < 4; meteorShotAt++)
                     {
 //Get distance addition (Up to 32 blocks offset)
                         double totalHorizontalDistance = horizontalDistance + 60.0D + (5.0D * (rand.nextDouble()));
@@ -1045,13 +1065,13 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
                             this.world, this.posX, this.posY + (this.height / 2.0D), this.posZ, 
                             this, true, this.meteorLandingDamage,
                             15, 
-                            Math.cos(flameStartingRadians + (0.1D * Math.PI * flameShotAt)) * (totalHorizontalDistance) / 15.0D,
+                            Math.cos(flameStartingRadians + (0.125D * Math.PI * meteorShotAt)) * (totalHorizontalDistance) / 15.0D,
                             2.5D * (1.0D + (rand.nextDouble() * 0.2D)),
-                            Math.sin(flameStartingRadians + (0.1D * Math.PI * flameShotAt)) * (totalHorizontalDistance) / 15.0D,
+                            Math.sin(flameStartingRadians + (0.125D * Math.PI * meteorShotAt)) * (totalHorizontalDistance) / 15.0D,
                             1.0D, 0.0D,
                             (float) (this.width / 2.0D), false, true,
                             (int) (125 - (randomSpreadScale * 25)), (0.225D + (0.075D * randomSpreadScale)) * Math.PI, 0,
-                            10.0F, 1.8D, 1.01D,
+                            10.0F, 2.0D, 1.01D,
                             true, false, 6.9420F, false, false
                         );
                         meteorExplosive.setNoGravity(true);
@@ -1083,8 +1103,6 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
 //If last leap
                 else
                 {
-//Restoring movement speed
-                    this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(this.movementSpeedAttribute);
 //Applying longer cooldown
                     this.specialCooldownCurrent = this.specialCooldown;
 //Resetting leaps executed
@@ -1273,17 +1291,21 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
         if(this.isPerformingSpecial && (this.specialSequenceAt >= this.specialSequenceMax))
         {
 //If damage is melee and high enough
-            if((source.damageType.equals("mob") || source.damageType.equals("player"))
+            if((source.damageType.equals("arrow") || source.damageType.equals("player"))
             && (amount >= (float) 10.0F))
             {
 //And apply stun
-                this.livingEntityMixin.setAbsurdcraftStunned(true);
-                this.livingEntityMixin.setAbsurdcraftStunnedTimer(200);
+                this.livingEntityMixin.setAbsurdcraftStunned(true, 200);
             }      
         }
         
 
         return super.attackEntityFrom(source, amount);
+    }
+
+    public void onAbsurdcraftStunnedExtra()
+    {
+        this.resetBehaviorState();
     }
 
 
@@ -1507,5 +1529,34 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
     public boolean shouldRenderInPass(int pass)
     {
         return true;
+    }
+
+
+    protected float limitAngle(float sourceAngle, float targetAngle, float maximumChange)
+    {
+        float f = MathHelper.wrapDegrees(targetAngle - sourceAngle);
+
+        if (f > maximumChange)
+        {
+            f = maximumChange;
+        }
+
+        if (f < -maximumChange)
+        {
+            f = -maximumChange;
+        }
+
+        float f1 = sourceAngle + f;
+
+        if (f1 < 0.0F)
+        {
+            f1 += 360.0F;
+        }
+        else if (f1 > 360.0F)
+        {
+            f1 -= 360.0F;
+        }
+
+        return f1;
     }
 }

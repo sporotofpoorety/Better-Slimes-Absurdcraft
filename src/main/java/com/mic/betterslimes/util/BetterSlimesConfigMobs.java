@@ -32,7 +32,7 @@ public class BetterSlimesConfigMobs {
 
 
 
-    public static float movementSpeedMultiplier = 1.0F;
+    public static int quazarSize = 32;
 
     public static int leapWarning = 20;
     public static int leapCooldown = 120;
@@ -96,7 +96,7 @@ public class BetterSlimesConfigMobs {
 		config.addCustomCategoryComment(category3, "Quazar specific configs.");
 
 
-        movementSpeedMultiplier = config.getFloat("Quazar movement speed", category3, 1.0F, 0, MAX, "Amount by which the movement speed of Quazar is multiplied");
+        quazarSize = config.getInt("Quazar size", category3, 32, 0, MAX, "Size of Quazar in blocks");
 
         leapWarning = config.getInt("Quazar leap warning", category3, 20, 0, MAX, "Length of the animation the boss does before leap attacks in ticks. \nMust be shorter than leapCooldown");
         leapCooldown = config.getInt("Quazar leap cooldown", category3, 120, 0, MAX, "Length of the cooldown between Quazar's leaps");
@@ -106,7 +106,7 @@ public class BetterSlimesConfigMobs {
 
         specialWarning = config.getInt("Quazar special warning", category3, 50, 0, MAX, "Length of the animation the boss does before special attacks in ticks. \nMust be shorter than specialCooldown");
         specialCooldown = config.getInt("Quazar special cooldown", category3, 900, 0, MAX, "Cooldown after special attack sequences in ticks");
-        specialSequenceCooldown = config.getInt("Quazar special inbetween cooldown", category3, 60, 0, MAX, "Cooldown inbetween special attacks in ticks");
+        specialSequenceCooldown = config.getInt("Quazar special inbetween cooldown", category3, 60, 0, MAX, "Cooldown inbetween each part of a special attack in ticks");
         specialSequenceMax = config.getInt("Quazar special sequence count", category3, 3, 0, MAX, "Special attacks done in sequence");
         meteorLandingRadius = config.getInt("Quazar special meteor damage radius", category3, 16, 0, MAX, "Damage radius of the special meteor attack");
         meteorLandingDamage = config.getFloat("Quazar special meteor damage", category3, 24.0F, 0, MAX, "Damage the special meteor attack deals on landing");
