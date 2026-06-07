@@ -33,6 +33,8 @@ public class BetterSlimesConfigMobs {
 
 
     public static int quazarSize = 32;
+    public static int quazarStunDuration = 200;
+    public static float quazarStunDamage = 200.0F;
 
     public static int leapWarning = 20;
     public static int leapCooldown = 120;
@@ -47,9 +49,10 @@ public class BetterSlimesConfigMobs {
     public static int meteorLandingRadius = 16;
     public static float meteorLandingDamage = 24.0F;
     public static float meteorLaunchMultiplier = 1.0F;
+    public static double eruptionDistMax = 160.0D;
 
 
-	public static final int MAX = Short.MAX_VALUE;
+	public static final int MAX = Integer.MAX_VALUE;
 
 	public static void load(Configuration config) 
     {
@@ -97,6 +100,8 @@ public class BetterSlimesConfigMobs {
 
 
         quazarSize = config.getInt("Quazar size", category3, 32, 0, MAX, "Size of Quazar in blocks");
+        quazarStunDuration = config.getInt("Quazar stun duration", category3, 200, 0, MAX, "Quazar gets stunned for this many ticks");
+        quazarStunDamage = config.getFloat("Quazar stun damage", category3, 200.0F, 0, MAX, "Quazar takes this much damage on stun");
 
         leapWarning = config.getInt("Quazar leap warning", category3, 20, 0, MAX, "Length of the animation the boss does before leap attacks in ticks. \nMust be shorter than leapCooldown");
         leapCooldown = config.getInt("Quazar leap cooldown", category3, 120, 0, MAX, "Length of the cooldown between Quazar's leaps");
@@ -111,5 +116,6 @@ public class BetterSlimesConfigMobs {
         meteorLandingRadius = config.getInt("Quazar special meteor damage radius", category3, 16, 0, MAX, "Damage radius of the special meteor attack");
         meteorLandingDamage = config.getFloat("Quazar special meteor damage", category3, 24.0F, 0, MAX, "Damage the special meteor attack deals on landing");
         meteorLaunchMultiplier = config.getFloat("Quazar special meteor launch", category3, 1.0F, 0, MAX, "Launch speed all entities affected by the special meteor attack get");
+        eruptionDistMax = (double) config.getFloat("Quazar special eruption max distance", category3, 160.0F, 0, MAX, "Max distance eruptions can generate from the player");
     }
 }
