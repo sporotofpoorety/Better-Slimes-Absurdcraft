@@ -33,6 +33,7 @@ public class BetterSlimesConfigMobs {
 
 
     public static int quazarSize = 32;
+    public static boolean quazarGriefing = true;
     public static int quazarStunDuration = 200;
     public static float quazarStunDamage = 200.0F;
 
@@ -100,6 +101,7 @@ public class BetterSlimesConfigMobs {
 
 
         quazarSize = config.getInt("Quazar size", category3, 32, 0, MAX, "Size of Quazar in blocks");
+        quazarGriefing = config.getBoolean("Quazar griefing", category1, quazarGriefing, "Should Quazar break blocks");
         quazarStunDuration = config.getInt("Quazar stun duration", category3, 200, 0, MAX, "Quazar gets stunned for this many ticks");
         quazarStunDamage = config.getFloat("Quazar stun damage", category3, 200.0F, 0, MAX, "Quazar takes this much damage on stun");
 

@@ -55,6 +55,7 @@ import org.sporotofpoorety.eternitymode.entity.EntityThrownBlock;
 import org.sporotofpoorety.eternitymode.entity.ai.EntityAIRelentlessTargetPlayers;
 import org.sporotofpoorety.eternitymode.entity.ai.EntityAIStun;
 import org.sporotofpoorety.eternitymode.entity.projectile.EntityFlameShotBouncing;
+import org.sporotofpoorety.eternitymode.entity.projectile.EntityFlameShotHoming;
 import org.sporotofpoorety.eternitymode.entity.projectile.EntityFlameShotLinearSplits;
 import org.sporotofpoorety.eternitymode.interfacemixins.IMixinEntityLiving;
 import org.sporotofpoorety.eternitymode.util.AbsurdcraftMathUtils;
@@ -88,6 +89,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
 
 //Values config
     public int quazarSize;
+    public boolean quazarGriefing;
 
     public int leapWarning;
     public int leapCooldown;
@@ -137,6 +139,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
         this.setAttackModifier(1);
         this.setHealthModifier(1);
         this.setSlimeSize(this.quazarSize * 2, true);
+        this.quazarGriefing = BetterSlimesConfigMobs.quazarGriefing;
         this.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(10.0D);
         this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(0.07D);
         this.isImmuneToFire = true;
@@ -400,29 +403,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
 //Every 30 seconds
             if((this.ticksExisted % 200) == 0)
             {
-                double radianAt = 0.0D;
 
-                for(int pieceAt = 0; pieceAt < 1; pieceAt++)
-                {
-                    double randomDistance = 8.0D + (rand.nextDouble() * 16.0D);
-                    
-
-                    EntityEarthPiece earthPiece = new EntityEarthPiece(this.world,
-                        this.posX + randomDistance * Math.cos(radianAt), this.posY + 4.0D, this.posZ + randomDistance * Math.sin(radianAt),
-                        this, 
-                        "spin", "cube", 2,
-                        20, 
-                        20, 1.0D,
-                        10, 16.0D,
-                        40, 1.0D,
-                        40, 3.0D, 2.0D, 0.08D);
-
-                    earthPiece.setPieceSpin(100 + ((pieceAt + 1) * 25), 24.0D, radianAt, 20);
-
-                    this.world.spawnEntity(earthPiece);
-
-                    radianAt += 0.25D * Math.PI;
-                }
             }
 */
 
@@ -530,14 +511,6 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
 //Eruption executing state
             else if(this.behaviorState.equals("specialeruption")) 
             {
-//If boss already should explode on landing
-                if(this.shouldExplodeOnLanding)
-//Decrement explosion wait
-                {
-                    --this.landingExplosionWait;
-                }
-
-
 //Set up teleport coords and portals
                 if(!this.world.isRemote && this.specialCooldownCurrent == 25 && !this.isPerformingSpecial)
                 {
@@ -580,14 +553,12 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
 
 
 //When boss special countdown 
-//is at zero and this isn't already leaping
+//is at zero and this isn't already doing special
                 if (this.specialCooldownCurrent == 0 && !this.isPerformingSpecial)
                 {
-//Perform the special eruption
-                    this.executeSpecialEruption(attackTarget);
-//Wait a few ticks so the boss doesn't explode immediately after leaping
-                    --this.landingExplosionWait;
-               }
+//Perform special attack teleport
+                    this.executeSpecialTeleport(attackTarget);
+                }
             }
 
 
@@ -626,9 +597,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
             if(((this.livingEntityMixin.getRealTicksExisted() % 75) == 0) && this.currentAttackFire == 1) { this.executeBouncingVolley(); }
 */
             if(((this.livingEntityMixin.getRealTicksExisted() % 200) == 0) && this.currentAttackEarth == 0) { this.executeShinraTensei(); }
-/*
-            if(((this.livingEntityMixin.getRealTicksExisted() % 69420) == 0) && this.currentAttackEarth == 1) { this.executeGeomancyAttack(); }
-*/
+            if(((this.livingEntityMixin.getRealTicksExisted() % 69420) == 1) && this.currentAttackEarth == 1) { this.executeGeomancyAttack(); }
         }
     }
 
@@ -739,6 +708,10 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
                 EternityModeSoundEvents.ENTITY_QUAZAR_LANDING_EXPLOSION, SoundCategory.HOSTILE, 5.0F, 1.0F);
 
 
+
+//Randomly clockwise or counterclockwise
+            double clockOrCounterclock = (double) (rand.nextInt(2));
+
 //8 directional shockwaves
             for(int shockwaveAt = 0; shockwaveAt < 8; shockwaveAt++)
             {
@@ -751,14 +724,14 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
                 shockwave.setSubshockwaves(true, 50,
                     0.0D, 3.0D, 0.0D, 1.021D,
                     6, 3.0D);
-		        shockwave.setLocationAndAngles(this.posX, this.posY, this.posZ, this.rotationYaw, 0.0F);
+		        shockwave.setLocationAndAngles(this.posX, this.posY, this.posZ, this.rotationYaw, 0.0F);    
+                shockwave.oscillationInitial = clockOrCounterclock;
 
 		        this.getEntityWorld().spawnEntity(shockwave);
             }
 
-//Target for targeted shockwaves
+//Targeted shockwaves
             EntityLivingBase quazarAttackTarget = this.getAttackTarget();
-
             if (quazarAttackTarget != null)
             {
                 double baseRadians = Math.atan2(quazarAttackTarget.posZ - this.posZ, quazarAttackTarget.posX - this.posX);
@@ -775,6 +748,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
                         0.0D, 4.5D, 0.0D, 1.044D,
                         4, 3.0D);
 		            shockwave.setLocationAndAngles(this.posX, this.posY, this.posZ, this.rotationYaw, 0.0F);
+                    shockwave.oscillationInitial = clockOrCounterclock;
 
 		            this.getEntityWorld().spawnEntity(shockwave);
                 }
@@ -817,9 +791,9 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
             0.25D, 
             (targetHorizontalDistance + 32.0D) * Math.sin(currentRadians) / (30 + extraDuration), 
             1.0D, 0.0D, 
-            12.0F, false, true,
+            12.0F, false, this.quazarGriefing,
             200, Math.PI, 1,
-            100, 9.0F, 1.0D, 1.01D, 
+            100, 9.0F, 1.0D, 1.03D, 
             true, false, 0.5F, false, false,
             30 + extraDuration, true, 100, 1.0D, 1,
             true, false, 90.0D, 20.0D
@@ -876,13 +850,44 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
             5, 250, 150,
             1.0D, true, false, 90.0D, 20.0D);
         shinraTensei.setLocationAndAngles(this.posX, this.posY + (this.height / 2.0D), this.posZ, this.rotationYaw, 0.0F);
+        shinraTensei.pullSearchDepth = ((int) shinraTensei.posY) + 4;
+        shinraTensei.pullDontDestroy = !this.quazarGriefing; 
         this.getEntityWorld().spawnEntity(shinraTensei);
+    }
+
+    
+    protected void executeGeomancyAttack()
+    {
+        double radianAt = 0.0D;
+
+        for(int pieceAt = 0; pieceAt < 8; pieceAt++)
+        {
+            double randomDistance = 8.0D + (rand.nextDouble() * 16.0D);
+            
+            EntityEarthPiece earthPiece = new EntityEarthPiece(this.world,
+                this.posX + randomDistance * Math.cos(radianAt), this.posY + 4.0D, this.posZ + randomDistance * Math.sin(radianAt),
+                this, 
+                "spin", "cube", 2,
+                20, 
+                20, 1.0D,
+                10, 16.0D,
+                40, 1.0D,
+                40, 3.0D, 2.0D, 0.08D);
+            earthPiece.gatherDontGrief = !this.quazarGriefing;
+            earthPiece.blockDamage = 10.0F;
+
+            earthPiece.setPieceSpin(75 + ((pieceAt + 1) * 25), 56.0D, radianAt, 0.05D * Math.PI);
+
+            this.world.spawnEntity(earthPiece);
+
+            radianAt += 0.25D * Math.PI;
+        }
     }
 
 
 
 
-    protected void executeSpecialEruption(EntityLivingBase leapTarget) 
+    protected void executeSpecialTeleport(EntityLivingBase leapTarget) 
     {
         if(!this.world.isRemote)
         {
@@ -890,6 +895,8 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
             this.isPerformingSpecial = true;
 //Set to explode on landing
             this.shouldExplodeOnLanding = true;
+//Set explosion wait
+            this.landingExplosionWait = 20;
 
 /*
 //Get target distance
@@ -954,11 +961,11 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
             (float) ((this.width / 2.0D) + 2.0D), false, false);
 //Destroy blocks at arrival
             ExplosionUtil.performOptimizedExplosion(this.world, this, this.teleportX, this.teleportY + (this.height / 2.0D), this.teleportZ,
-                (this.width / 2.0D) + 2.0D, false, 6.9420F, false, 6.9420D, true, 9999.0F, false, 
+                (this.width / 2.0D) + 2.0D, false, 6.9420F, false, 6.9420D, this.quazarGriefing, 9999.0F, false, 
                 false, 69420, false);
 //Destroy blocks below
             ExplosionUtil.performOptimizedExplosion(this.world, this, this.teleportX, this.teleportY - (2.0D + 2.0D + (this.height / 2.0D)), this.teleportZ,
-                (this.width / 2.0D) + 2.0D, false, 6.9420F, false, 6.9420D, true, 9999.0F, false, 
+                (this.width / 2.0D) + 2.0D, false, 6.9420F, false, 6.9420D, this.quazarGriefing, 9999.0F, false, 
                 false, 69420, false);
 
             this.setPositionAndUpdate(this.teleportX, this.teleportY, this.teleportZ);
@@ -989,8 +996,32 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
             (float) ((this.width / 2.0D) + 2.0D), false, false);
 //Destroy blocks below
             ExplosionUtil.performOptimizedExplosion(this.world, this, this.posX, this.posY - (2.0D + 2.0D + (this.height / 2.0D)), this.posZ,
-                (this.width / 2.0D) + 2.0D, false, 6.9420F, false, 6.9420D, true, 9999.0F, false, 
+                (this.width / 2.0D) + 2.0D, false, 6.9420F, false, 6.9420D, this.quazarGriefing, 9999.0F, false, 
                 false, 69420, false);
+
+
+//Extra homing projectiles
+            double currentRadians = 2.0D * Math.PI * rand.nextDouble();
+            int extraDuration = rand.nextInt(30);
+
+            EntityFlameShotHoming flameShotHoming = new EntityFlameShotHoming
+            (
+                this.world,
+                this.posX, this.posY + (this.height / 2.0D), this.posZ,
+                this,
+                200,
+                80.0D * Math.cos(currentRadians) / (30 + extraDuration), 
+                0.25D, 
+                80.0D * Math.sin(currentRadians) / (30 + extraDuration), 
+                1.0D, 0.0D, 
+                1.2D, true, true, 1.0F,
+                5, 2, 0.06D,
+                100, Math.PI, 0,
+                100, 9.0F, 1.0D, 1.03D, 
+                30 + extraDuration, true, 100, 1.0D, 1, 
+                20, true, 4.0F, false, true,
+                true, false, 0.5F, false, false
+            );
         }
     }
 
@@ -1003,132 +1034,137 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
             EntityLivingBase attackTarget = this.getAttackTarget();
 
 
-//Check for if in air, Y high and above target
-            if((!this.onGround && this.posY > 6.0D && (this.posY > attackTarget.posY)) || (this.landingExplosionWait > 0))
+//Check for if has not yet gotten on ground in air, low Y, or below target
+            if((!this.onGround && this.posY > 6.0D && (this.posY > attackTarget.posY)) && (this.landingExplosionWait >= 20))
             {
                 this.performSpecialFall();
             }
             else
             {
-//Track if last leap in sequence
-                boolean lastLeapInSequence = (this.specialSequenceAt >= this.specialSequenceMax);
+                --this.landingExplosionWait;
 
-
-                ExplosionUtil.performOptimizedExplosion(this.world, this, this.posX, this.posY + (this.height / 2), this.posZ,
-                this.meteorLandingRadius + (this.width / 2.0D), true, this.meteorLandingDamage, true, 8.0D * (double) this.meteorLaunchMultiplier, false, 9999.0F, true, 
-                true, 1, false);
-
-
-                MiscUtil.screenShakeForNearbyPlayers(13);
-
-
-                if(!this.world.isRemote)
+                if(this.landingExplosionWait <= 0)
                 {
-                    this.world.playSound(null, 
-                        attackTarget.posX, attackTarget.posY, attackTarget.posZ,
-                        EternityModeSoundEvents.ENTITY_QUAZAR_LANDING_EXPLOSION, SoundCategory.HOSTILE, 5.0F, 1.0F);
+//Track if last leap in sequence
+                    boolean lastLeapInSequence = (this.specialSequenceAt >= this.specialSequenceMax);
+
+
+                    ExplosionUtil.performOptimizedExplosion(this.world, this, this.posX, this.posY + (this.height / 2), this.posZ,
+                    this.meteorLandingRadius + (this.width / 2.0D), true, this.meteorLandingDamage, true, 8.0D * (double) this.meteorLaunchMultiplier, false, 9999.0F, true, 
+                    true, 1, false);
+
+
+                    MiscUtil.screenShakeForNearbyPlayers(13);
+
+
+                    if(!this.world.isRemote)
+                    {
+                        this.world.playSound(null, 
+                            attackTarget.posX, attackTarget.posY, attackTarget.posZ,
+                            EternityModeSoundEvents.ENTITY_QUAZAR_LANDING_EXPLOSION, SoundCategory.HOSTILE, 5.0F, 1.0F);
 
 //Testing new eruption
-                    this.scheduleLandingEruptionEncroaching(5, 30,
-                        13, 6.0D, 2.0D, 0.5D);
+                        this.scheduleLandingEruptionEncroaching(5, 30,
+                            13, 6.0D, 2.0D, 0.5D);
 
 
 
 
 //Now the fireball spread
 //Get target distance
-                    double horizontalDistance = 
-                        Math.sqrt(Math.pow(attackTarget.posX - this.posX, 2) + Math.pow(attackTarget.posZ - this.posZ, 2));
+                        double horizontalDistance = 
+                            Math.sqrt(Math.pow(attackTarget.posX - this.posX, 2) + Math.pow(attackTarget.posZ - this.posZ, 2));
 //And angle
-                    double flameStartingRadians = 
-                        Math.atan2(attackTarget.posZ - this.posZ, attackTarget.posX - this.posX);
+                        double flameStartingRadians = 
+                            Math.atan2(attackTarget.posZ - this.posZ, attackTarget.posX - this.posX);
 
 
-                    for(int meteorShotAt = -4; meteorShotAt < 4; meteorShotAt++)
-                    {
+                        for(int meteorShotAt = -4; meteorShotAt < 4; meteorShotAt++)
+                        {
 //Get distance addition (Up to 32 blocks offset)
-                        double totalHorizontalDistance = horizontalDistance + 60.0D + (5.0D * (rand.nextDouble()));
+                            double totalHorizontalDistance = horizontalDistance + 60.0D + (5.0D * (rand.nextDouble()));
 //                      if(totalHorizontalDistance > 80.0D) { totalHorizontalDistance = 80.0D; }
 
 //Up to double the angle and projectile count randomly
-                        double randomSpreadScale = rand.nextDouble();
+                            double randomSpreadScale = rand.nextDouble();
 
 /*
-                        EntityFlameShotLinearSplits flameShotExplosive = new EntityFlameShotLinearSplits
-                        (
-                            this.world,
-                            this.posX, this.posY + (this.height / 2.0D), this.posZ,
-                            this, 
-                            15, 
-                            Math.cos(flameStartingRadians + (0.1D * Math.PI * flameShotAt)) * (totalHorizontalDistance) / 15.0D,
-                            2.5D * (1.0D + (rand.nextDouble() * 0.2D)),
-                            Math.sin(flameStartingRadians + (0.1D * Math.PI * flameShotAt)) * (totalHorizontalDistance) / 15.0D,
-                            1.0D, 0.04D, 
-                            1.2D, true, true, 5.0F, 
-                            10, 5, 0.06D,
-                            (int) (50 * randomSpreadScale), (0.175D * Math.PI) * randomSpreadScale, 0,
-                            1.0F, 1.5D, 1.04D,
-                            20, true, 6.0F, true, true,
-                            false, 0.5F, false, false
-                        );
-                        flameShotExplosive.setNoGravity(false);
-                        flameShotExplosive.setLocationAndAngles(this.posX, this.posY + (this.height / 2.0D), this.posZ, this.rotationYaw, 0.0F);
-                        this.getEntityWorld().spawnEntity(flameShotExplosive);
+                            EntityFlameShotLinearSplits flameShotExplosive = new EntityFlameShotLinearSplits
+                            (
+                                this.world,
+                                this.posX, this.posY + (this.height / 2.0D), this.posZ,
+                                this, 
+                                15, 
+                                Math.cos(flameStartingRadians + (0.1D * Math.PI * flameShotAt)) * (totalHorizontalDistance) / 15.0D,
+                                2.5D * (1.0D + (rand.nextDouble() * 0.2D)),
+                                Math.sin(flameStartingRadians + (0.1D * Math.PI * flameShotAt)) * (totalHorizontalDistance) / 15.0D,
+                                1.0D, 0.04D, 
+                                1.2D, true, true, 5.0F, 
+                                10, 5, 0.06D,
+                                (int) (50 * randomSpreadScale), (0.175D * Math.PI) * randomSpreadScale, 0,
+                                1.0F, 1.5D, 1.04D,
+                                20, true, 6.0F, true, true,
+                                false, 0.5F, false, false
+                            );
+                            flameShotExplosive.setNoGravity(false);
+                            flameShotExplosive.setLocationAndAngles(this.posX, this.posY + (this.height / 2.0D), this.posZ, this.rotationYaw, 0.0F);
+                            this.getEntityWorld().spawnEntity(flameShotExplosive);
 */
 
-                        EntityMeteorBlock meteorExplosive = new EntityMeteorBlock
-                        (
-                            this.world, this.posX, this.posY + (this.height / 2.0D), this.posZ, 
-                            this, true, this.meteorLandingDamage,
-                            15, 
-                            Math.cos(flameStartingRadians + (0.125D * Math.PI * meteorShotAt)) * (totalHorizontalDistance) / 15.0D,
-                            2.5D * (1.0D + (rand.nextDouble() * 0.2D)),
-                            Math.sin(flameStartingRadians + (0.125D * Math.PI * meteorShotAt)) * (totalHorizontalDistance) / 15.0D,
-                            1.0D, 0.0D,
-                            (float) (this.width / 2.0D), false, true,
-                            (int) (125 - (randomSpreadScale * 25)), (0.225D + (0.075D * randomSpreadScale)) * Math.PI, 0,
-                            50, 10.0F, 2.0D, 1.022D,
-                            true, false, 6.9420F, false, false
-                        );
-                        meteorExplosive.setNoGravity(true);
-                        meteorExplosive.setLocationAndAngles(this.posX, this.posY + (this.height / 2.0D), this.posZ, this.rotationYaw, 0.0F);
-                        this.getEntityWorld().spawnEntity(meteorExplosive);
+                            EntityMeteorBlock meteorExplosive = new EntityMeteorBlock
+                            (
+                                this.world, this.posX, this.posY + (this.height / 2.0D), this.posZ, 
+                                this, true, this.meteorLandingDamage,
+                                15, 
+                                Math.cos(flameStartingRadians + (0.125D * Math.PI * meteorShotAt)) * (totalHorizontalDistance) / 15.0D,
+                                2.5D * (1.0D + (rand.nextDouble() * 0.2D)),
+                                Math.sin(flameStartingRadians + (0.125D * Math.PI * meteorShotAt)) * (totalHorizontalDistance) / 15.0D,
+                                1.0D, 0.0D,
+                                (float) (this.width / 2.0D), false, true,
+                                (int) (125 - (randomSpreadScale * 25)), (0.225D + (0.075D * randomSpreadScale)) * Math.PI, 0,
+                                50, 10.0F, 2.0D, 1.022D,
+                                true, false, 6.9420F, false, false
+                            );
+                            meteorExplosive.setNoGravity(true);
+                            meteorExplosive.setLocationAndAngles(this.posX, this.posY + (this.height / 2.0D), this.posZ, this.rotationYaw, 0.0F);
+                            this.getEntityWorld().spawnEntity(meteorExplosive);
+                        }
                     }
-                }
 
 
 //Finish special explosion by...
 
 //No longer exploding on landing
-                this.shouldExplodeOnLanding = false;
+                    this.shouldExplodeOnLanding = false;
 //Setting not performing leap
-                this.isPerformingSpecial = false;
+                    this.isPerformingSpecial = false;
 
 
 //If not max eruption
-                if(this.specialSequenceAt < this.specialSequenceMax) 
-                { 
+                    if(this.specialSequenceAt < this.specialSequenceMax) 
+                    { 
 //Applying short cooldown
-                    this.specialCooldownCurrent = this.specialSequenceCooldown;
+                        this.specialCooldownCurrent = this.specialSequenceCooldown;
 //Incrementing eruptions executed
-                    ++this.specialSequenceAt;
+                        ++this.specialSequenceAt;
 //Wait a bit before explosion again
-                    this.landingExplosionWait = 5;
-                }
+                        this.landingExplosionWait = 20;
+                    }
 
 //If last eruption
-                else
-                {
+                    else
+                    {
 //Applying longer cooldown
-                    this.specialCooldownCurrent = this.specialCooldown;
+                        this.specialCooldownCurrent = this.specialCooldown;
 //Resetting eruptions executed
-                    this.specialSequenceAt = 1;
+                        this.specialSequenceAt = 1;
 //Wait a bit before explosion again
-                    this.landingExplosionWait = 5;
+                        this.landingExplosionWait = 5;
 //Reset leap cooldown
-                    this.leapCooldownCurrent = 200;     
+                        this.leapCooldownCurrent = 200;     
 //Resetting state
-                    this.behaviorState = "default";   
+                        this.behaviorState = "default";   
+                    }
                 }
             }
         }
