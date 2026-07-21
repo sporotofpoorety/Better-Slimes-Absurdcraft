@@ -45,24 +45,26 @@ import net.minecraft.world.World;
 import net.minecraftforge.common.config.Configuration;
 import net.minecraftforge.fml.common.registry.ForgeRegistries;
 
-import org.sporotofpoorety.eternitymode.client.ExplosiveHandler;
 import org.sporotofpoorety.eternitymode.core.EternityModeSoundEvents;
+import org.sporotofpoorety.eternitymode.entity.EntityDemonScythe;
 import org.sporotofpoorety.eternitymode.entity.EntityEarthPiece;
 import org.sporotofpoorety.eternitymode.entity.EntityExplosiveShockwave;
 import org.sporotofpoorety.eternitymode.entity.EntityMeteorBlock;
 import org.sporotofpoorety.eternitymode.entity.EntityMeteorBlockHoming;
 import org.sporotofpoorety.eternitymode.entity.EntityThrownBlock;
 import org.sporotofpoorety.eternitymode.entity.ai.EntityAIRelentlessTargetPlayers;
-import org.sporotofpoorety.eternitymode.entity.ai.EntityAIStun;
 import org.sporotofpoorety.eternitymode.entity.projectile.EntityFlameShotBouncing;
 import org.sporotofpoorety.eternitymode.entity.projectile.EntityFlameShotHoming;
+import org.sporotofpoorety.eternitymode.entity.projectile.EntityFlameShotLinear;
 import org.sporotofpoorety.eternitymode.entity.projectile.EntityFlameShotLinearSplits;
 import org.sporotofpoorety.eternitymode.interfacemixins.IMixinEntityLiving;
-import org.sporotofpoorety.eternitymode.util.AbsurdcraftMathUtils;
-import org.sporotofpoorety.eternitymode.util.EntityUtil;
+import org.sporotofpoorety.eternitymode.packets.ExplosionVisualPacket;
 import org.sporotofpoorety.eternitymode.util.ExplosionUtil;
-import org.sporotofpoorety.eternitymode.util.MiscUtil;
+import org.sporotofpoorety.eternitymode.util.PacketUtil;
+import org.sporotofpoorety.eternitymode.util.PlayerEffectsUtil;
 import org.sporotofpoorety.eternitymode.util.ProjectileUtil;
+import org.sporotofpoorety.eternitymode.util.ShapeIcosahedron;
+import org.sporotofpoorety.eternitymode.util.SimpleMathUtil;
 import org.sporotofpoorety.eternitymode.util.QueuedActionAtPos;
 
 import org.sporotofpoorety.srpabsurdcraft.entity.EntityOrbVoidCustom;
@@ -312,7 +314,6 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
 */
 
         this.targetTasks.addTask(1, new EntityAIRelentlessTargetPlayers(this, 300.0D));
-//      this.tasks.addTask(0, new EntityAIStun(this));
     }
     
 
@@ -396,18 +397,10 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
             }
 
 
+//Face target entity
             this.faceEntity(attackTarget, 10.0F, 10.0F);
             this.rotationYawHead = this.rotationYaw;
             this.renderYawOffset = this.rotationYaw;
-
-
-/*
-//Every 30 seconds
-            if((this.ticksExisted % 200) == 0)
-            {
-
-            }
-*/
 
 
 //Default state
@@ -697,12 +690,12 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
         }
 
 
-        ExplosionUtil.performOptimizedExplosion(this.world, this, this.posX, this.posY + (this.height / 2), this.posZ,
+        ExplosionUtil.performOptimizedExplosion(this.world, this, this, this.posX, this.posY + (this.height / 2), this.posZ,
         this.leapLandingRadius + (this.width / 2.0D), true, this.leapLandingDamage, true, 6.0D * (double) this.leapLaunchMultiplier, false, 9999.0F, false, 
-        true, 1, false);
+        true, 2, false);
 
 
-        MiscUtil.screenShakeForNearbyPlayers(10);
+        PlayerEffectsUtil.screenShakeForNearbyPlayers(10);
 
 
         if(!this.world.isRemote)
@@ -724,7 +717,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
                     80, false, 3.0F, 0.5D * Math.cos(Math.PI * 0.25D * shockwaveAt), 0.0D, 0.5D * Math.sin(Math.PI * 0.25D * shockwaveAt), 1.044D,
                     true, 4.5D, 20.0D,
                     1, 4.0D, 5.0F,
-                    true, 2.0D, false, 1, 3);
+                    true, 2.0D, false, 2, 3);
                 shockwave.setSubshockwaves(true, 50,
                     0.0D, 3.0D, 0.0D, 1.021D,
                     6, 3.0D);
@@ -747,7 +740,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
                         40, false, 3.0F, 2.25D * Math.cos(baseRadians + (Math.PI * 0.125D * angleAt)), 0.0D, 2.25D * Math.sin(baseRadians + (Math.PI * 0.125D * angleAt)), 1.021D,
                         true, 1.5D, 20.0D,
                         1, 4.0D, 5.0F,
-                        true, 2.0D, false, 1, 2);
+                        true, 2.0D, false, 2, 2);
                     shockwave.setSubshockwaves(true, 25,
                         0.0D, 4.5D, 0.0D, 1.044D,
                         4, 3.0D);
@@ -809,6 +802,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
 
     protected void executeBouncingVolley()
     {
+/*
         ArrayList<Vec3d> bouncingShotgun = ProjectileUtil.flexibleFibonnaciShotgunCoord
             (this.posX, this.posY + 16.0D, this.posZ, 
             this, this.getAttackTarget(),
@@ -841,6 +835,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
 
             this.world.spawnEntity(flameShotBouncing);
         }
+*/
     }
 
     
@@ -862,30 +857,19 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
     
     protected void executeGeomancyAttack()
     {
+/*
         double radianAt = 0.0D;
 
         for(int pieceAt = 0; pieceAt < 8; pieceAt++)
         {
-            double randomDistance = 8.0D + (rand.nextDouble() * 16.0D);
-            
-            EntityEarthPiece earthPiece = new EntityEarthPiece(this.world,
-                this.posX + randomDistance * Math.cos(radianAt), this.posY + 4.0D, this.posZ + randomDistance * Math.sin(radianAt),
-                this, 
-                "spin", "cube", 2,
-                20, 
-                20, 1.0D,
-                10, 40.0D,
-                40, 1.0D,
-                40, 3.0D, 2.0D, 0.08D);
-            earthPiece.gatherDontGrief = !this.quazarGriefing;
-            earthPiece.blockDamage = 10.0F;
-
-            earthPiece.setPieceSpin(75 + ((pieceAt + 1) * 25), 40.0D, radianAt, 0.05D * Math.PI);
-
-            this.world.spawnEntity(earthPiece);
+            QueuedActionAtPos scheduledGather = new QueuedActionAtPos(6.9420D, 6.9420D, 6.9420D, this.world.getTotalWorldTime() + (pieceAt * 5), 1);
+            scheduledGather.actionScale = radianAt; 
+//Add scheduled blast to this
+            ((IMixinEntityLiving) this).addQueuedAction(scheduledGather);
 
             radianAt += 0.25D * Math.PI;
         }
+*/
     }
 
 
@@ -963,14 +947,18 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
         }
 */
 //Explode visually at self
-            ExplosiveHandler.spawnParticles(this.world, this.teleportX, this.teleportY + (this.height / 2.0D), this.teleportZ,
-            (float) ((this.width / 2.0D) + 2.0D), false, false);
+            if(!this.world.isRemote)
+            {
+                PacketUtil.sendPacketToNearbyPlayers(this.world, this.teleportX, this.teleportY + (this.height / 2.0D), this.teleportZ, 999.0D, 
+                    new ExplosionVisualPacket(2, this.teleportX, this.teleportY + (this.height / 2.0D), this.teleportZ, (float) ((this.width / 2.0D) + 2.0D), false));
+            }
+
 //Destroy blocks at arrival
-            ExplosionUtil.performOptimizedExplosion(this.world, this, this.teleportX, this.teleportY + (this.height / 2.0D), this.teleportZ,
+            ExplosionUtil.performOptimizedExplosion(this.world, this, this, this.teleportX, this.teleportY + (this.height / 2.0D), this.teleportZ,
                 (this.width / 2.0D) + 2.0D, false, 6.9420F, false, 6.9420D, this.quazarGriefing, 9999.0F, false, 
                 false, 69420, false);
 //Destroy blocks below
-            ExplosionUtil.performOptimizedExplosion(this.world, this, this.teleportX, this.teleportY - (2.0D + 2.0D + (this.height / 2.0D)), this.teleportZ,
+            ExplosionUtil.performOptimizedExplosion(this.world, this, this, this.teleportX, this.teleportY - (2.0D + 2.0D + (this.height / 2.0D)), this.teleportZ,
                 (this.width / 2.0D) + 2.0D, false, 6.9420F, false, 6.9420D, this.quazarGriefing, 9999.0F, false, 
                 false, 69420, false);
 
@@ -997,14 +985,18 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
         {
 //Explode visually at self
 /*
-            ExplosionUtil.performOptimizedExplosion(this.world, this, this.posX, this.posY + (this.height / 2.0D), this.posZ,
+            ExplosionUtil.performOptimizedExplosion(this.world, this, this, this.posX, this.posY + (this.height / 2.0D), this.posZ,
                 (this.width / 2.0D) + 2.0D, false, 6.9420F, false, 6.9420D, false, 6.9420F, false, 
-                true, 1, false);
+                true, 2, false);
 */
-            ExplosiveHandler.spawnParticles(this.world, this.posX, this.posY + (this.height / 2.0D), this.posZ,
-            (float) ((this.width / 2.0D) + 2.0D), false, false);
+            if(!this.world.isRemote)
+            {
+                PacketUtil.sendPacketToNearbyPlayers(this.world, this.posX, this.posY + (this.height / 2.0D), this.posZ, 999.0D, 
+                    new ExplosionVisualPacket(2, this.posX, this.posY + (this.height / 2.0D), this.posZ, (float) ((this.width / 2.0D) + 2.0D), false));
+            }
+
 //Destroy blocks below
-            ExplosionUtil.performOptimizedExplosion(this.world, this, this.posX, this.posY - (2.0D + 2.0D + (this.height / 2.0D)), this.posZ,
+            ExplosionUtil.performOptimizedExplosion(this.world, this, this, this.posX, this.posY - (2.0D + 2.0D + (this.height / 2.0D)), this.posZ,
                 (this.width / 2.0D) + 2.0D, false, 6.9420F, false, 6.9420D, this.quazarGriefing, 9999.0F, false, 
                 false, 69420, false);
 
@@ -1061,12 +1053,13 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
                     boolean lastLeapInSequence = (this.specialSequenceAt >= this.specialSequenceMax);
 
 
-                    ExplosionUtil.performOptimizedExplosion(this.world, this, this.posX, this.posY + (this.height / 2), this.posZ,
-                    this.meteorLandingRadius + (this.width / 2.0D), true, this.meteorLandingDamage, true, 8.0D * (double) this.meteorLaunchMultiplier, false, 9999.0F, true, 
-                    true, 1, false);
+                    ExplosionUtil.performOptimizedExplosion(this.world, this, this, this.posX, this.posY + (this.height / 2), this.posZ,
+                        this.meteorLandingRadius + (this.width / 2.0D), 
+                        true, this.meteorLandingDamage, true, 8.0D * (double) this.meteorLaunchMultiplier, false, 9999.0F, true, 
+                        true, 2, false);
 
 
-                    MiscUtil.screenShakeForNearbyPlayers(13);
+                    PlayerEffectsUtil.screenShakeForNearbyPlayers(13);
 
 
                     if(!this.world.isRemote)
@@ -1091,37 +1084,13 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
                             Math.atan2(attackTarget.posZ - this.posZ, attackTarget.posX - this.posX);
 
 
-                        for(int meteorShotAt = -4; meteorShotAt < 4; meteorShotAt++)
+                        for(int meteorShotAt = -3; meteorShotAt <= 3; meteorShotAt++)
                         {
-//Get distance addition (Up to 32 blocks offset)
-                            double totalHorizontalDistance = horizontalDistance + 60.0D + (5.0D * (rand.nextDouble()));
-//                      if(totalHorizontalDistance > 80.0D) { totalHorizontalDistance = 80.0D; }
+//Get distance addition
+                            double totalHorizontalDistance = horizontalDistance + 50.0D;
 
-//Up to double the angle and projectile count randomly
+//Angle and projectile count can vary a bit
                             double randomSpreadScale = rand.nextDouble();
-
-/*
-                            EntityFlameShotLinearSplits flameShotExplosive = new EntityFlameShotLinearSplits
-                            (
-                                this.world,
-                                this.posX, this.posY + (this.height / 2.0D), this.posZ,
-                                this, 
-                                15, 
-                                Math.cos(flameStartingRadians + (0.1D * Math.PI * flameShotAt)) * (totalHorizontalDistance) / 15.0D,
-                                2.5D * (1.0D + (rand.nextDouble() * 0.2D)),
-                                Math.sin(flameStartingRadians + (0.1D * Math.PI * flameShotAt)) * (totalHorizontalDistance) / 15.0D,
-                                1.0D, 0.04D, 
-                                1.2D, true, true, 5.0F, 
-                                10, 5, 0.06D,
-                                (int) (50 * randomSpreadScale), (0.175D * Math.PI) * randomSpreadScale, 0,
-                                1.0F, 1.5D, 1.04D,
-                                20, true, 6.0F, true, true,
-                                false, 0.5F, false, false
-                            );
-                            flameShotExplosive.setNoGravity(false);
-                            flameShotExplosive.setLocationAndAngles(this.posX, this.posY + (this.height / 2.0D), this.posZ, this.rotationYaw, 0.0F);
-                            this.getEntityWorld().spawnEntity(flameShotExplosive);
-*/
 
                             EntityMeteorBlock meteorExplosive = new EntityMeteorBlock
                             (
@@ -1129,12 +1098,12 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
                                 this, true, this.meteorLandingDamage,
                                 15, 
                                 Math.cos(flameStartingRadians + (0.125D * Math.PI * meteorShotAt)) * (totalHorizontalDistance) / 15.0D,
-                                2.5D * (1.0D + (rand.nextDouble() * 0.2D)),
+                                1.25D,
                                 Math.sin(flameStartingRadians + (0.125D * Math.PI * meteorShotAt)) * (totalHorizontalDistance) / 15.0D,
                                 1.0D, 0.0D,
                                 (float) (this.width / 2.0D), false, true,
-                                (int) (125 - (randomSpreadScale * 25)), (0.225D + (0.075D * randomSpreadScale)) * Math.PI, 0,
-                                50, 10.0F, 2.0D, 1.022D,
+                                (int) (125 - (randomSpreadScale * 15)), (0.225D + (0.05D * randomSpreadScale)) * Math.PI, 0,
+                                50, 10.0F, 1.0D, 1.022D,
                                 true, false, 6.9420F, false, false
                             );
                             meteorExplosive.setNoGravity(true);
@@ -1218,9 +1187,9 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
 
 
 //Sequential ring radii
-            double outwardRingRadius = (double) AbsurdcraftMathUtils.simpleSummationDouble(ringDistanceInitial, ringDistanceStep, encroachAt);
+            double outwardRingRadius = (double) SimpleMathUtil.simpleSummationDecimal(ringDistanceInitial, ringDistanceStep, encroachAt);
 //Sequential ring radii
-            double inwardRingRadius = (double) AbsurdcraftMathUtils.simpleSummationDouble(ringDistanceInitial, ringDistanceStep, inwardEncroachAt);
+            double inwardRingRadius = (double) SimpleMathUtil.simpleSummationDecimal(ringDistanceInitial, ringDistanceStep, inwardEncroachAt);
             
 
 //Outwards distance step (used as int for blast spot count)
@@ -1239,7 +1208,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
 //Middle ring distance step
         currentDistanceStep = ringDistanceInitial + (ringDistanceStep * middlePoint);
 //Middle ring radius
-        double middleRingRadius = (double) AbsurdcraftMathUtils.simpleSummationDouble(ringDistanceInitial, ringDistanceStep, middlePoint);
+        double middleRingRadius = (double) SimpleMathUtil.simpleSummationDecimal(ringDistanceInitial, ringDistanceStep, middlePoint);
 //Schedule middle ring
         this.scheduleLandingEruptionRing(baseDelay + (delayIncrement * (middlePoint - 1)), middleRingRadius, (int) currentDistanceStep, fillFraction);
     }
@@ -1272,7 +1241,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
 //Schedule location for an eruption
     public void scheduleLandingEruptionSpot(double atX, double atZ, int delay, double blastSize)
     {
-        QueuedActionAtPos scheduledBlast = new QueuedActionAtPos(atX, 69420.0D, atZ, this.world.getTotalWorldTime() + delay, 1);
+        QueuedActionAtPos scheduledBlast = new QueuedActionAtPos(atX, 69420.0D, atZ, this.world.getTotalWorldTime() + delay, 2);
         scheduledBlast.actionScale = blastSize; 
 //Add scheduled blast to this
         ((IMixinEntityLiving) this).addQueuedAction(scheduledBlast);
@@ -1295,11 +1264,32 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
                 this.executeLeap(attackTarget);
             }
         }
+//Make earth piece
+        if(queuedAction.actionType == 1)
+        {
+            double randomDistance = 8.0D + (rand.nextDouble() * 16.0D);
+            
+            EntityEarthPiece earthPiece = new EntityEarthPiece(this.world,
+                this.posX + randomDistance * Math.cos(queuedAction.actionScale), this.posY + 4.0D, this.posZ + randomDistance * Math.sin(queuedAction.actionScale),
+                this, 
+                "spin", "cube", 2,
+                20, 
+                20, 1.0D,
+                10, 40.0D,
+                40, 1.0D,
+                40, 3.0D, 2.0D, 0.08D);
+            earthPiece.gatherDontGrief = !this.quazarGriefing;
+            earthPiece.blockDamage = 10.0F;
+
+            earthPiece.setPieceSpin(75 + ((int) (queuedAction.actionScale * 100.0D)), 40.0D, queuedAction.actionScale, 0.05D * Math.PI);
+
+            this.world.spawnEntity(earthPiece);
+        }
 //Execute eruption
-        else if(queuedAction.actionType == 1)
+        else if(queuedAction.actionType == 2)
         {
 //If position within configured distance of a player
-            if(EntityUtil.isPosCloseToAnyPlayer(this.world, queuedAction.actionX, queuedAction.actionZ, Math.max(80.0D, this.eruptionDistMax), false))
+            if(PlayerEffectsUtil.isPosCloseToAnyPlayer(this.world, queuedAction.actionX, queuedAction.actionZ, Math.max(80.0D, this.eruptionDistMax), false))
             {
 /*
 //Warning shockwave
@@ -1324,7 +1314,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
                 0.0D, 0.6D, 0.0D, 1.044D,
                 false, 3.0D, 9,
                 5, queuedAction.actionScale, 20.0F, 
-                false, 0.0D, false, 1, 69420);
+                false, 0.0D, false, 2, 69420);
 
              if(!this.world.isRemote) { this.getEntityWorld().spawnEntity(slowerShockwave); }
 */
@@ -1337,7 +1327,7 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
                     0.0D, 10.0D, 0.0D, 1.0D,
                     false, 3.0D, 9,
                     2, queuedAction.actionScale, 20.0F, 
-                    false, 0.0D, false, 1, 69420);
+                    false, 0.0D, false, 2, 69420);
 
                 if(!this.world.isRemote) { this.getEntityWorld().spawnEntity(fasterShockwave); }
             }
@@ -1385,11 +1375,11 @@ public class Quazar extends EntityBetterSlime implements ISpecialSlime
                 {
                     double offsetAngle = (2.0D * Math.PI * (double) explosionAt / 9.0D) + ((2.0D / 9.0D) * Math.PI * (double) rotationAt / 10.0D);
 
-                    ExplosiveHandler.spawnParticles(this.world, 
-                        this.posX + (Math.cos(offsetAngle) * this.width), 
-                        this.posY + (this.height * 1.15D), 
-                        this.posZ + (Math.sin(offsetAngle) * this.width),
-                        (float) ((this.width / 16.0D) + 2.0D), false, false);
+                    if(!this.world.isRemote) 
+                    {
+                        PacketUtil.sendPacketToNearbyPlayers(this.world, this.posX + (Math.cos(offsetAngle) * this.width), this.posY + (this.height * 1.15D), this.posZ + (Math.sin(offsetAngle) * this.width), 999.0D, 
+                            new ExplosionVisualPacket(2, this.posX + (Math.cos(offsetAngle) * this.width), this.posY + (this.height * 1.15D), this.posZ + (Math.sin(offsetAngle) * this.width), (float) ((this.width / 16.0D) + 2.0D), false));
+                    }
                 }
             }
         }
